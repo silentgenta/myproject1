@@ -5,8 +5,34 @@
 % If you want to split the blueprint content into several files then
 % the current file can be a simple sequence of \input. Otherwise It
 % can start with a \section or \chapter for instance.
-\begin{theorem}
-  The congruence E(Tn)is the intersection of all prime congruences on T[x].
-\end{theorem}
+\begin{example}
+  Example 2.1. The set B ={0, 1}is a semiring under the usual addition and multipli-cation, with the notable exception that 1 +1 =1. This is usually called theboolean semiring; see [22, pg. 12].
+https://github.com/leanprover-community/mathlib4/blob/7deb334c5f5104f4edad1a6396dd02a8cddefb86/Mathlib/Algebra/Order/Ring/Idempotent.leanL66-L87
+\end{example}
 
-test
+
+semiring Risadditively idempotentif
+https://github.com/leanprover-community/mathlib4/blob/7deb334c5f5104f4edad1a6396dd02a8cddefb86/Mathlib/Algebra/Order/Kleene.leanL101-L117
+
+
+
+the tropical semiring
+https://github.com/leanprover-community/mathlib4/blob/7deb334c5f5104f4edad1a6396dd02a8cddefb86/Mathlib/Algebra/Tropical/Basic.leanL481-L487
+
+
+
+Definition 2.4. Acongruenceon a semiring Ris a subset E⊆R×Rwith the following properties:
+https://github.com/leanprover-community/mathlib4/blob/7deb334c5f5104f4edad1a6396dd02a8cddefb86/Mathlib/Algebra/RingQuot.leanL75-L110
+
+
+
+Definition 2.5. Let Rbe a semiring. Thetwisted producton R×Ris defined by
+(a, b)  (c, d) :=(ac + bd, ad + bc)
+for a, b, c, d ∈R.
+たぶんないので作らないといけない
+
+
+
+Lemma 2.6. Suppose Ris a commutative semiring. A subset E⊆R×Ris a congruence on Rif and only if Esatisfies conditions (E1)–(E3), (I1), and the following condition:
+(I2)’If (a, b) ∈E, then (c, d) (a, b) ∈Efor every c, d ∈R.
+無い
