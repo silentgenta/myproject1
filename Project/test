@@ -1,0 +1,69 @@
+import Mathlib
+
+
+inductive B : Type --inductiveで新しい型を生成する。型はtypeとする。
+| zero | one --網羅的に構成要素を列挙
+deriving DecidableEq, Repr --統合が成立するかの判定がdecidableによって可能になる。Rperはevalやcheckができるようになる。
+
+namespace B
+open B
+
+/-! ### 定数の導入と数値表記 -/
+instance : Zero B := ⟨zero⟩
+instance : One  B := ⟨one⟩
+instance : OfNat B 0 := ⟨zero⟩
+instance : OfNat B 1 := ⟨one⟩
+
+/-- 加法（論理和） -/
+def add : B → B → B
+| 0, x => x
+| 1, _ => 1
+
+/-- 乗法（論理積） -/
+def mul : B → B → B
+| 0, _ => 0
+| _, 0 => 0
+| 1, 1 => 1
+
+instance : Add B := ⟨add⟩
+instance : Mul B := ⟨mul⟩
+
+/-! ### 演算補題（衝突回避のため B.add_zero のように名前空間つき） -/
+@[simp] lemma add_zero  (a : B) : a + 0 = a := by cases a <;> rfl
+@[simp] lemma zero_add  (a : B) : 0 + a = a := by cases a <;> rfl
+@[simp] lemma add_comm  (a b : B) : a + b = b + a := by cases a <;> cases b <;> rfl
+@[simp] lemma add_assoc (a b c : B) : (a + b) + c = a + (b + c) := by
+  cases a <;> cases b <;> cases c <;> rfl
+@[simp] lemma mul_zero  (a : B) : a * 0 = 0 := by cases a <;> rfl
+@[simp] lemma zero_mul  (a : B) : 0 * a = 0 := by cases a <;> rfl
+@[simp] lemma mul_one   (a : B) : a * 1 = a := by cases a <;> rfl
+@[simp] lemma one_mul   (a : B) : 1 * a = a := by cases a <;> rfl
+@[simp] lemma mul_comm  (a b : B) : a * b = b * a := by cases a <;> cases b <;> rfl
+@[simp] lemma mul_assoc (a b c : B) : (a * b) * c = a * (b * c) := by
+  cases a <;> cases b <;> cases c <;> rfl
+@[simp] lemma left_distrib  (a b c : B) : a * (b + c) = a * b + a * c := by
+  cases a <;> cases b <;> cases c <;> rfl
+@[simp] lemma right_distrib (a b c : B) : (a + b) * c = a * c + b * c := by
+  cases a <;> cases b <;> cases c <;> rfl
+
+/-! ### 自然数倍 (nsmul) の定義と補題 -/
+def nsmulB : ℕ → B → B
+| 0, _     => 0
+| n+1, x   => nsmulB n x + x
+
+
+@[simp] lemma nsmulB_zero (a : B) : nsmulB 0 a = 0 := by rfl
+@[simp] lemma nsmulB_succ (n : ℕ) (x : B) :
+    nsmulB (n + 1) x = nsmulB n x + x := by
+  cases x <;> cases n <;> simp [nsmulB, B.add_zero, B.add_comm]
+
+
+/-- `B` は可換半環 -/
+instance : CommSemiring B :=
+{ add := (· + ·), add_assoc := add_assoc, add_comm := add_comm,
+  zero := 0, zero_add := zero_add, add_zero := add_zero,
+  mul := (· * ·), mul_assoc := mul_assoc, mul_comm := mul_comm,
+  one := 1, one_mul := one_mul, mul_one := mul_one,
+  left_distrib := left_distrib, right_distrib := right_distrib,
+  zero_mul := zero_mul, mul_zero := mul_zero,
+  nsmul := nsmulB, nsmul_zero := nsmulB_zero, nsmul_succ := nsmulB_succ }
