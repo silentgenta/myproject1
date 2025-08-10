@@ -1,0 +1,17 @@
+import Mathlib
+
+def AddIdempotent (A : Type*) [Semiring A] : Prop := ∀ a : A, a + a = a
+def BAlgebra (B A : Type*) [BooleanRing B] [Semiring A] : Prop := Nonempty (Algebra B A)
+
+lemma idempotent_iff_balgebra {A B : Type*} [CommRing A] [BooleanRing B] : 
+ AddIdempotent A ↔ BAlgebra B A := by
+ constructor
+ intro h
+ unfold BAlgebra
+ sorry
+ intro h
+ unfold AddIdempotent
+ sorry
+
+
+
