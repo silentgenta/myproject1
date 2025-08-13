@@ -1,21 +1,76 @@
-class AddCommMonoidWithOne' (R : Type u) : Type u
-  extends AddCommMonoid R, One R, NatCast R where
-  (natCast_zero : (NatCast.natCast 0 : R) = 0)
-  (natCast_succ : ∀ n, (NatCast.natCast (n+1) : R) = NatCast.natCast n + 1)
-  
-class CommSemiRing (R : Type u) : Type u
-  extends AddCommMonoidWithOne' R, Mul R where
-  -- 乗法の結合律・可換性
-  mul_assoc  : ∀ a b c : R, (a * b) * c = a * (b * c)
-  mul_comm   : ∀ a b   : R, a * b = b * a
-  -- 単位元
-  one_mul    : ∀ a : R, 1 * a = a
-  mul_one    : ∀ a : R, a * 1 = a
-  -- 零元
-  zero_mul   : ∀ a : R, 0 * a = 0
-  mul_zero   : ∀ a : R, a * 0 = 0
-  -- 分配法則
-  left_distrib  : ∀ a b c : R, a * (b + c) = a * b + a * c
+import Mathlib
+
+--Def2.1.1（宋先生の定義に忠実に従った(可換な)Semiringの定義）
+class Tropgeo.Semiring (R : Type u) : Type u
+  extends AddCommMonoid R, CommMonoid R where
+  mul_zero : ∀ a : R, a * 0 = 0
+  zero_mul : ∀ a : R, 0 * a = 0
+  left_distrib  : ∀ a b c : R , a * (b + c) = a * b + a * c
   right_distrib : ∀ a b c : R, (a + b) * c = a * c + b * c
 
+--ついでに半体を定義
+class Tropgeo.Semifield (R : Type u) : Type u
+  extends Tropgeo.Semiring R where
+  (zero_ne_one : (0 : R) ≠ 1)
+  (exists_inv  : ∀ {a : R}, a ≠ 0 → ∃ b : R, a * b = 1)
 
+--加法的冪等の定義
+def AddIdempotent (R : Type*) [Tropgeo.Semiring R] : Prop :=
+  ∀ a : R, a + a = a
+
+--Ex2.1.2 𝔹=({0,-∞},max,+)は半体である
+inductive 𝔹 : Type
+| negInf  
+| zero    
+
+/-
+つけておくといいことがあるとGPTからアドバイスあり
+deriving DecidableEq, Repr, Inhabited
+-/
+
+
+instance : Zero 𝔹 := ⟨𝔹.negInf⟩
+instance : One  𝔹 := ⟨𝔹.zero⟩
+
+instance : Add 𝔹 :=
+  ⟨fun a b =>
+    match a, b with
+    | .negInf, x      => x
+    | x,      .negInf => x
+    | .zero,  .zero   => .zero⟩
+
+instance : Mul 𝔹 :=
+  ⟨fun a b =>
+    match a, b with
+    | .zero,  .zero   => .zero
+    | _,      _       => .negInf⟩
+
+/- 加法について可換モノイド -/
+instance : AddCommMonoid 𝔹 where
+  add := (·+·)
+  zero := (0 : 𝔹)
+  add_assoc := by
+    intro a b c; cases a <;> cases b <;> cases c <;> rfl
+  zero_add := by
+    intro a; cases a <;> rfl
+  add_zero := by
+    intro a; cases a <;> rfl
+  add_comm := by
+    intro a b; cases a <;> cases b <;> rfl
+  nsmul := fun n a => Nat.recOn n (0) (fun _ s => s + a)
+  nsmul_zero := by intro x; rfl
+  nsmul_succ := by intro n x; rfl
+
+/- 乗法について可換モノイド -/
+instance : CommMonoid 𝔹 where
+  mul := (·*·)
+  one := (1 : 𝔹)
+  mul_assoc := by
+    intro a b c; cases a <;> cases b <;> cases c <;> rfl
+  one_mul := by
+    intro a; cases a <;> rfl
+  mul_one := by
+    intro a; cases a <;> rfl
+  mul_comm := by
+    intro a b; cases a <;> cases b <;> rfl
+  npow := fun n a => Nat.recOn n (1) (fun _ s => s * a)
