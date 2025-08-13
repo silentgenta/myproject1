@@ -1,5 +1,10 @@
-class CommSemiRing (R : Type u) : Type (u+1)
-  extends AddCommMonoidWithOne R, Mul R where
+class AddCommMonoidWithOne' (R : Type u) : Type u
+  extends AddCommMonoid R, One R, NatCast R where
+  (natCast_zero : (NatCast.natCast 0 : R) = 0)
+  (natCast_succ : ∀ n, (NatCast.natCast (n+1) : R) = NatCast.natCast n + 1)
+  
+class CommSemiRing (R : Type u) : Type u
+  extends AddCommMonoidWithOne' R, Mul R where
   -- 乗法の結合律・可換性
   mul_assoc  : ∀ a b c : R, (a * b) * c = a * (b * c)
   mul_comm   : ∀ a b   : R, a * b = b * a
@@ -12,3 +17,5 @@ class CommSemiRing (R : Type u) : Type (u+1)
   -- 分配法則
   left_distrib  : ∀ a b c : R, a * (b + c) = a * b + a * c
   right_distrib : ∀ a b c : R, (a + b) * c = a * c + b * c
+
+
