@@ -1,7 +1,13 @@
+/-
+Copyright (c) 2025 Sasaki Genta. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Sasaki Genta
+-/
 import Mathlib
 
+namespace TropicalGeometry
 --Def2.1.1（宋先生の定義に忠実に従った(可換な)Semiringの定義）
-class Tropgeo.Semiring (R : Type u) : Type u
+class Semiring (R : Type u) : Type u
   extends AddCommMonoid R, CommMonoid R where
   mul_zero : ∀ a : R, a * 0 = 0
   zero_mul : ∀ a : R, 0 * a = 0
@@ -9,19 +15,19 @@ class Tropgeo.Semiring (R : Type u) : Type u
   right_distrib : ∀ a b c : R, (a + b) * c = a * c + b * c
 
 --ついでに半体を定義
-class Tropgeo.Semifield (R : Type u) : Type u
-  extends Tropgeo.Semiring R where
+class Semifield (R : Type u) : Type u
+  extends Semiring R where
   (zero_ne_one : (0 : R) ≠ 1)
   (exists_inv  : ∀ {a : R}, a ≠ 0 → ∃ b : R, a * b = 1)
 
 --加法的冪等の定義
-def AddIdempotent (R : Type*) [Tropgeo.Semiring R] : Prop :=
+def AddIdempotent (R : Type*) [Semiring R] : Prop :=
   ∀ a : R, a + a = a
 
 --Ex2.1.2 𝔹=({0,-∞},max,+)は半体である
 inductive 𝔹 : Type
-| negInf  
-| zero    
+| negInf
+| zero
 
 /-
 つけておくといいことがあるとGPTからアドバイスあり
@@ -74,3 +80,68 @@ instance : CommMonoid 𝔹 where
   mul_comm := by
     intro a b; cases a <;> cases b <;> rfl
   npow := fun n a => Nat.recOn n (1) (fun _ s => s * a)
+
+--Def2.1.3(半環準同型の定義)
+universe u v w
+structure SemiringHomomorphism (S1 : Type u) (S2 : Type v)
+  [Semiring S1] [Semiring S2] where
+  toFun   : S1 → S2
+  map_add : ∀ a b : S1, toFun (a + b) = toFun a + toFun b
+  map_mul : ∀ a b : S1, toFun (a * b) = toFun a * toFun b
+  map_zero : toFun (0 : S1) = (0 : S2)
+  map_one  : toFun (1 : S1) = (1 : S2)
+
+namespace SemiringHomomorphism
+
+variable {S1 : Type u} {S2 : Type v} {S3 : Type w}
+variable [Semiring S1] [Semiring S2] [Semiring S3]
+
+--今後関数として使えるようにする。これがないといちいちf.toFun xと書かなきゃいけなくなる。
+instance : CoeFun (SemiringHomomorphism S1 S2) (fun _ => S1 → S2) where
+  coe f := f.toFun
+
+--simpを使えるように
+@[simp] lemma map_add' (f : SemiringHomomorphism S1 S2) (a b : S1) :
+    f (a + b) = f a + f b :=
+  f.map_add a b
+
+@[simp] lemma map_mul' (f : SemiringHomomorphism S1 S2) (a b : S1) :
+    f (a * b) = f a * f b :=
+  f.map_mul a b
+
+@[simp] lemma map_zero' (f : SemiringHomomorphism S1 S2) :
+    f (0 : S1) = (0 : S2) :=
+  f.map_zero
+
+@[simp] lemma map_one' (f : SemiringHomomorphism S1 S2) :
+    f (1 : S1) = (1 : S2) :=
+  f.map_one
+
+/-- 恒等準同型 -/
+def id (S : Type u) [Semiring S] : SemiringHomomorphism S S where
+  toFun := fun x => x
+  map_add := by intro a b; rfl
+  map_mul := by intro a b; rfl
+  map_zero := rfl
+  map_one := rfl
+
+/-- 準同型の合成 -/
+def comp (g : SemiringHomomorphism S2 S3) (f : SemiringHomomorphism S1 S2) :
+    SemiringHomomorphism S1 S3 where
+  toFun := fun x => g (f x)
+  map_add := by
+    intro a b
+    -- g (f (a + b)) → g (f a + f b) → g (f a) + g (f b)
+    simp
+  map_mul := by
+    intro a b
+    -- g (f (a * b)) → g (f a * f b) → g (f a) * g (f b)
+    simp
+  map_zero := by
+    -- g (f 0) → g 0 → 0
+    simp
+  map_one := by
+    -- g (f 1) → g 1 → 1
+    simp
+
+end SemiringHomomorphism
