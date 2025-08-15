@@ -261,18 +261,18 @@ noncomputable def psi (H : AlgebraRel A X Y) : SemiringHomomorphism X Y :=
 
 end AlgebraRel
 
--- A-代数同型（A-algebra isomorphism）
+-- A-代数同型の定義
 structure AlgIso (A : Type u) (X : Type v) (Y : Type w)
   [Semiring A] [Semiring X] [Semiring Y]
   [Algebra X A] [Algebra Y A] : Type (max u v w) where
   toHom   : AlgHom A X Y
   invHom  : AlgHom A Y X
-  -- 互いに逆
+  -- 互いに逆（AlgHom のフィールド toHom を一度だけ取り出して使う）
   left_inv  :
-    SemiringHomomorphism.comp invHom.toHom.toHom toHom.toHom
+    SemiringHomomorphism.comp invHom.toHom toHom.toHom
       = SemiringHomomorphism.id X
   right_inv :
-    SemiringHomomorphism.comp toHom.toHom invHom.toHom.toHom
+    SemiringHomomorphism.comp toHom.toHom invHom.toHom
       = SemiringHomomorphism.id Y
 
 namespace AlgIso
@@ -300,9 +300,9 @@ variable [Algebra X A] [Algebra Y A]
 
 /-- 対称性（逆同型）。 -/
 def symm (e : AlgIso A X Y) : AlgIso A Y X where
-  toHom    := e.invHom
-  invHom   := e.toHom
-  left_inv := e.right_inv
+  toHom     := e.invHom
+  invHom    := e.toHom
+  left_inv  := e.right_inv
   right_inv := e.left_inv
 
 end AlgIso
@@ -310,6 +310,5 @@ end AlgIso
 
 end TropicalGeometry
 
-
-
+#min_imports
 
