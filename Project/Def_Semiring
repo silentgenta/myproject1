@@ -145,3 +145,43 @@ def comp (g : SemiringHomomorphism S2 S3) (f : SemiringHomomorphism S1 S2) :
     simp
 
 end SemiringHomomorphism
+
+--S₁代数の定義
+class Algebra (A : Type u) (B : Type v)
+  [Semiring A] [Semiring B] : Type (max u v) where
+  hom : SemiringHomomorphism B A
+
+namespace Algebra
+
+variable {A : Type u} {B : Type v} [Semiring A] [Semiring B]
+
+def ofHom (Ψ : SemiringHomomorphism B A) : Algebra A B :=
+  ⟨Ψ⟩
+
+@[reducible] def algebraMap [h : Algebra A B] : SemiringHomomorphism B A :=
+  h.hom
+
+--simp用
+@[simp] lemma map_add [Algebra A B] (x y : B) :
+    algebraMap (A:=A) (B:=B) (x + y)
+      = algebraMap (A:=A) (B:=B) x + algebraMap (A:=A) (B:=B) y := by
+  simp 
+
+@[simp] lemma map_mul [Algebra A B] (x y : B) :
+    algebraMap (A:=A) (B:=B) (x * y)
+      = algebraMap (A:=A) (B:=B) x * algebraMap (A:=A) (B:=B) y := by
+  simp
+
+@[simp] lemma map_zero [Algebra A B] :
+    algebraMap (A:=A) (B:=B) 0 = (0 : A) := by
+  simp
+
+@[simp] lemma map_one [Algebra A B] :
+    algebraMap (A:=A) (B:=B) 1 = (1 : A) := by
+  simp
+
+end Algebra
+
+
+
+end TropicalGeometry
