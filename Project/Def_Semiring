@@ -182,6 +182,134 @@ def ofHom (Ψ : SemiringHomomorphism B A) : Algebra A B :=
 
 end Algebra
 
+-- A-代数準同型の定義
+structure AlgHom (A : Type u) (X : Type v) (Y : Type w)
+  [Semiring A] [Semiring X] [Semiring Y]
+  [Algebra X A] [Algebra Y A] : Type (max u v w) where
+  toHom : SemiringHomomorphism X Y
+  comm  :
+    SemiringHomomorphism.comp toHom
+      (Algebra.algebraMap (A:=X) (B:=A))  -- f : A → X
+    = (Algebra.algebraMap (A:=Y) (B:=A))  -- g : A → Y
+
+namespace AlgHom
+
+variable {A : Type u} {X : Type v} {Y : Type w}
+variable [Semiring A] [Semiring X] [Semiring Y]
+variable [Algebra X A] [Algebra Y A]
+
+/-- 可換図式の **点ごと**版。 -/
+@[simp] lemma comm_apply (h : AlgHom A X Y) (a : A) :
+    h.toHom (Algebra.algebraMap (A:=X) (B:=A) a)
+      = (Algebra.algebraMap (A:=Y) (B:=A) a) := by
+  -- h.comm : comp h.toHom f = g に a を適用
+  exact congrArg (fun (φ : SemiringHomomorphism A Y) => φ a) h.comm
+
+end AlgHom
+
+
+/-- A-代数準同型の**存在**を言う命題（Prop）：
+    既存の `[Algebra X A]` と `[Algebra Y A]` のもとで
+    「`∃ Ψ, g = Ψ ∘ f`」を主張する。 -/
+def AlgebraRel (A : Type u) (X : Type v) (Y : Type w)
+  [Semiring A] [Semiring X] [Semiring Y]
+  [Algebra X A] [Algebra Y A] : Prop :=
+  ∃ (Ψ : SemiringHomomorphism X Y),
+    SemiringHomomorphism.comp Ψ
+      (Algebra.algebraMap (A:=X) (B:=A))
+    = (Algebra.algebraMap (A:=Y) (B:=A))
+
+/-- 3引数の存在命題のための**専用スコープ記法**。
+    `open scoped TGAlgRel` で `AlgRel A X Y` と書ける。 -/
+scoped[TGAlgRel] notation "AlgRel " A:arg X:arg Y:arg =>
+  TropicalGeometry.AlgebraRel A X Y
+
+namespace AlgebraRel
+
+variable {A : Type u} {X : Type v} {Y : Type w}
+variable [Semiring A] [Semiring X] [Semiring Y]
+variable [Algebra X A] [Algebra Y A]
+
+/-- 具体的な Ψ と可換性から、存在命題を導入。 -/
+theorem intro
+  (Ψ : SemiringHomomorphism X Y)
+  (h : SemiringHomomorphism.comp Ψ
+         (Algebra.algebraMap (A:=X) (B:=A))
+       = (Algebra.algebraMap (A:=Y) (B:=A))) :
+  AlgebraRel A X Y :=
+  ⟨Ψ, h⟩
+
+/-- 存在命題から **ひとつ**の Ψ を（選択で）取り出す。 -/
+noncomputable def psi (H : AlgebraRel A X Y) : SemiringHomomorphism X Y :=
+  Classical.choose H
+
+/-- 取り出した Ψ は三角形を可換にする。 -/
+@[simp] theorem comm (H : AlgebraRel A X Y) :
+    SemiringHomomorphism.comp (psi (A:=A) (X:=X) (Y:=Y) H)
+      (Algebra.algebraMap (A:=X) (B:=A))
+  = (Algebra.algebraMap (A:=Y) (B:=A)) :=
+  Classical.choose_spec H
+
+/-- 可換性の点ごと版。 -/
+@[simp] theorem comm_apply (H : AlgebraRel A X Y) (a : A) :
+    (psi (A:=A) (X:=X) (Y:=Y) H)
+      (Algebra.algebraMap (A:=X) (B:=A) a)
+  = (Algebra.algebraMap (A:=Y) (B:=A) a) := by
+  -- `comm` を取り出して `congrArg` を適用するだけ
+  have hc := comm (A:=A) (X:=X) (Y:=Y) H
+  exact congrArg (fun (φ : SemiringHomomorphism A Y) => φ a) hc
+
+end AlgebraRel
+
+-- A-代数同型（A-algebra isomorphism）
+structure AlgIso (A : Type u) (X : Type v) (Y : Type w)
+  [Semiring A] [Semiring X] [Semiring Y]
+  [Algebra X A] [Algebra Y A] : Type (max u v w) where
+  toHom   : AlgHom A X Y
+  invHom  : AlgHom A Y X
+  -- 互いに逆
+  left_inv  :
+    SemiringHomomorphism.comp invHom.toHom.toHom toHom.toHom
+      = SemiringHomomorphism.id X
+  right_inv :
+    SemiringHomomorphism.comp toHom.toHom invHom.toHom.toHom
+      = SemiringHomomorphism.id Y
+
+namespace AlgIso
+
+variable {A : Type u} {X : Type v} {Y : Type w}
+variable [Semiring A] [Semiring X] [Semiring Y]
+variable [Algebra X A] [Algebra Y A]
+
+/-- 同型の順方向の底の準同型を取り出す（記号短縮用）。 -/
+@[simp] def toAlgHom (e : AlgIso A X Y) : AlgHom A X Y := e.toHom
+/-- 同型の逆方向の底の準同型を取り出す（記号短縮用）。 -/
+@[simp] def invAlgHom (e : AlgIso A X Y) : AlgHom A Y X := e.invHom
+
+/-- 左逆（点ごと版）：`e.inv ∘ e` は恒等。 -/
+@[simp] lemma left_inv_apply (e : AlgIso A X Y) (x : X) :
+    e.invHom.toHom (e.toHom.toHom x) = x := by
+  -- `left_inv : comp inv to = id` に `x` を適用
+  exact congrArg (fun (φ : SemiringHomomorphism X X) => φ x) e.left_inv
+
+/-- 右逆（点ごと版）：`e ∘ e.inv` は恒等。 -/
+@[simp] lemma right_inv_apply (e : AlgIso A X Y) (y : Y) :
+    e.toHom.toHom (e.invHom.toHom y) = y := by
+  -- `right_inv : comp to inv = id` に `y` を適用
+  exact congrArg (fun (φ : SemiringHomomorphism Y Y) => φ y) e.right_inv
+
+/-- 対称性（逆同型）。 -/
+def symm (e : AlgIso A X Y) : AlgIso A Y X where
+  toHom    := e.invHom
+  invHom   := e.toHom
+  left_inv := e.right_inv
+  right_inv := e.left_inv
+
+end AlgIso
 
 
 end TropicalGeometry
+
+
+
+
