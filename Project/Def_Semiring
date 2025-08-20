@@ -198,7 +198,7 @@ variable {A : Type u} {X : Type v} {Y : Type w}
 variable [Semiring A] [Semiring X] [Semiring Y]
 variable [Algebra X A] [Algebra Y A]
 
-/-- 可換図式の **点ごと**版。 -/
+/-- 可換図式--/
 @[simp] lemma comm_apply (h : AlgHom A X Y) (a : A) :
     h.toHom (Algebra.algebraMap (A:=X) (B:=A) a)
       = (Algebra.algebraMap (A:=Y) (B:=A) a) := by
@@ -208,7 +208,7 @@ variable [Algebra X A] [Algebra Y A]
 end AlgHom
 
 
-/-- A-代数準同型の**存在**を言う命題（Prop）：
+/-- A-代数準同型の存在の命題（Prop）：
     既存の `[Algebra X A]` と `[Algebra Y A]` のもとで
     「`∃ Ψ, g = Ψ ∘ f`」を主張する。 -/
 def AlgebraRel (A : Type u) (X : Type v) (Y : Type w)
@@ -281,9 +281,9 @@ variable {A : Type u} {X : Type v} {Y : Type w}
 variable [Semiring A] [Semiring X] [Semiring Y]
 variable [Algebra X A] [Algebra Y A]
 
-/-- 同型の順方向の底の準同型を取り出す（記号短縮用）。 -/
+/-- 同型の順方向の底の準同型を取り出す。 -/
 @[simp] def toAlgHom (e : AlgIso A X Y) : AlgHom A X Y := e.toHom
-/-- 同型の逆方向の底の準同型を取り出す（記号短縮用）。 -/
+/-- 同型の逆方向の底の準同型を取り出す。 -/
 @[simp] def invAlgHom (e : AlgIso A X Y) : AlgHom A Y X := e.invHom
 
 /-- 左逆（点ごと版）：`e.inv ∘ e` は恒等。 -/
