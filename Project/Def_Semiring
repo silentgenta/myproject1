@@ -125,24 +125,40 @@ def id (S : Type u) [Semiring S] : SemiringHomomorphism S S where
   map_zero := rfl
   map_one := rfl
 
-/-- 準同型の合成 -/
+
+
+variable {S1 : Type u} {S2 : Type v} {S3 : Type w}
+variable [Semiring S1] [Semiring S2] [Semiring S3]
+
+/-- 準同型の合成（`simp` を使わず明示的に証明） -/
 def comp (g : SemiringHomomorphism S2 S3) (f : SemiringHomomorphism S1 S2) :
     SemiringHomomorphism S1 S3 where
   toFun := fun x => g (f x)
   map_add := by
     intro a b
-    -- g (f (a + b)) → g (f a + f b) → g (f a) + g (f b)
-    simp
+    calc
+      g (f (a + b)) = g (f a + f b) := by
+        exact congrArg (fun x => g x) (f.map_add a b)
+      _ = g (f a) + g (f b) := by
+        exact g.map_add (f a) (f b)
   map_mul := by
     intro a b
-    -- g (f (a * b)) → g (f a * f b) → g (f a) * g (f b)
-    simp
+    calc
+      g (f (a * b)) = g (f a * f b) := by
+        exact congrArg (fun x => g x) (f.map_mul a b)
+      _ = g (f a) * g (f b) := by
+        exact g.map_mul (f a) (f b)
   map_zero := by
-    -- g (f 0) → g 0 → 0
-    simp
+    calc
+      g (f 0) = g 0 := by exact congrArg (fun x => g x) f.map_zero
+      _ = 0 := g.map_zero
   map_one := by
-    -- g (f 1) → g 1 → 1
-    simp
+    calc
+      g (f 1) = g 1 := by exact congrArg (fun x => g x) f.map_one
+      _ = 1 := g.map_one
+
+
+
 
 end SemiringHomomorphism
 
@@ -162,23 +178,30 @@ def ofHom (Ψ : SemiringHomomorphism B A) : Algebra A B :=
   h.hom
 
 --simp用
+
+
+variable {A : Type u} {B : Type v} [Semiring A] [Semiring B]
+
 @[simp] lemma map_add [Algebra A B] (x y : B) :
     algebraMap (A:=A) (B:=B) (x + y)
-      = algebraMap (A:=A) (B:=B) x + algebraMap (A:=A) (B:=B) y := by
-  simp 
+      = algebraMap (A:=A) (B:=B) x + algebraMap (A:=A) (B:=B) y :=
+  (algebraMap (A:=A) (B:=B)).map_add' x y
 
 @[simp] lemma map_mul [Algebra A B] (x y : B) :
     algebraMap (A:=A) (B:=B) (x * y)
-      = algebraMap (A:=A) (B:=B) x * algebraMap (A:=A) (B:=B) y := by
-  simp
+      = algebraMap (A:=A) (B:=B) x * algebraMap (A:=A) (B:=B) y :=
+  (algebraMap (A:=A) (B:=B)).map_mul' x y
 
 @[simp] lemma map_zero [Algebra A B] :
-    algebraMap (A:=A) (B:=B) 0 = (0 : A) := by
-  simp
+    algebraMap (A:=A) (B:=B) 0 = (0 : A) :=
+  (algebraMap (A:=A) (B:=B)).map_zero'
 
 @[simp] lemma map_one [Algebra A B] :
-    algebraMap (A:=A) (B:=B) 1 = (1 : A) := by
-  simp
+    algebraMap (A:=A) (B:=B) 1 = (1 : A) :=
+  (algebraMap (A:=A) (B:=B)).map_one'
+
+
+
 
 end Algebra
 
@@ -308,7 +331,83 @@ def symm (e : AlgIso A X Y) : AlgIso A Y X where
 end AlgIso
 
 
+/-! 𝔹 をこのファイルの `Semiring` にする（未定義なら有効化） -/
+instance : Semiring 𝔹 where
+  mul_zero := by intro a; cases a <;> rfl
+  zero_mul := by intro a; cases a <;> rfl
+  left_distrib := by
+    intro a b c; cases a <;> cases b <;> cases c <;> rfl
+  right_distrib := by
+    intro a b c; cases a <;> cases b <;> cases c <;> rfl
+
+/-- 𝔹 では `1 + 1 = 1`（定義通り） -/
+@[simp] lemma B_one_add_one : ((1 : 𝔹) + (1 : 𝔹)) = (1 : 𝔹) := rfl
+
+/-- `A` が加法冪等なら，標準写像 `𝔹 → A` を半環準同型として構成。 -/
+def boolHomOfAddIdem (A : Type u) [Semiring A]
+    (h : AddIdempotent A) : SemiringHomomorphism 𝔹 A :=
+{ toFun := fun x =>
+    match x with
+    | 𝔹.negInf => 0
+    | 𝔹.zero   => 1,
+  map_add := by
+    intro x y
+    cases x <;> cases y
+    · -- (⊥, ⊥)：0 = 0 + 0
+      exact (zero_add (0 : A)).symm
+    · -- (⊥, 0)：1 = 0 + 1
+      exact (zero_add (1 : A)).symm
+    · -- (0, ⊥)：1 = 1 + 0
+      exact (add_zero (1 : A)).symm
+    · -- (0, 0)：1 = 1 + 1（冪等性）
+      exact (h (1 : A)).symm,
+  map_mul := by
+    intro x y
+    cases x <;> cases y
+    · -- (⊥, ⊥)：0 = 0 * 0
+      exact (Semiring.zero_mul (R:=A) (0 : A)).symm
+    · -- (⊥, 0)：0 = 0 * 1
+      exact (Semiring.zero_mul (R:=A) (1 : A)).symm
+    · -- (0, ⊥)：0 = 1 * 0
+      exact (Semiring.mul_zero (R:=A) (1 : A)).symm
+    · -- (0, 0)：1 = 1 * 1
+      exact (one_mul (1 : A)).symm,
+  map_zero := rfl,
+  map_one  := rfl }
+
+
+/--Lemma2.1.5 「A が加法冪等」↔「A が 𝔹-代数（存在する）」 -/
+theorem addIdempotent_iff_nonempty_boolAlgebra
+    (A : Type u) [Semiring A] :
+    AddIdempotent A ↔ Nonempty (Algebra A 𝔹) := by
+  constructor
+  · -- (→) 加法冪等 ⇒ 𝔹-代数が存在
+    intro h
+    exact ⟨Algebra.ofHom (boolHomOfAddIdem A h)⟩
+  · -- (←) 𝔹-代数が存在 ⇒ 加法冪等
+    intro hAlg
+    rcases hAlg with ⟨inst⟩
+    -- ψ : 𝔹 → A
+    let ψ : SemiringHomomorphism 𝔹 A := inst.hom
+    -- 1_A = 1_A + 1_A
+    have h11A : (1 : A) = (1 : A) + (1 : A) := by
+      have h0 := ψ.map_add (1 : 𝔹) (1 : 𝔹)      -- ψ(1+1) = ψ1 + ψ1
+      have h1 : ψ 1 = ψ 1 + ψ 1 := by
+        simpa [B_one_add_one] using h0
+      simpa [ψ.map_one] using h1
+    -- 任意の a について a + a = a
+    intro a
+    -- まず a*1 = a*1 + a*1 を作る（左分配と h11A）
+    have hmul : a * 1 = a * 1 + a * 1 := by
+      -- a*(1+1) = a*1 + a*1 に対して，(1+1) → 1 へ書き換える
+     simpa [← h11A] using (Semiring.left_distrib (R:=A) a 1 1)
+
+    -- あとは mul_one で仕上げ
+    -- （向きを合わせるために対称を取る）
+    have : a + a = a := by
+      simpa [mul_one] using hmul.symm
+    exact this
+
 end TropicalGeometry
 
 #min_imports
-
