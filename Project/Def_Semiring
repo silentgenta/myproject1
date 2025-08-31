@@ -410,7 +410,7 @@ theorem addIdempotent_iff_nonempty_boolAlgebra
 
 
 
-/-Prop2.1.7-/
+/-! # 「B 代数（= 加法冪等半環）」で定める順序 `≤ₐ` の基本性質 -/
 
 section OrderFromAddIdem
 
@@ -474,6 +474,124 @@ end OrderFromAddIdem
 -/
 
 end TropicalGeometry
+
+universe u
+
+namespace TropicalGeometry
+
+/-- 半環 `A` が**消去的 (cancellative)** であるとは，
+`∀ a b c, a*b = a*c → (a = 0 ∨ b = c)` が成り立つこと。 -/
+def Cancellative (A : Type u) [Semiring A] : Prop :=
+  ∀ ⦃a b c : A⦄, a * b = a * c → a = (0 : A) ∨ b = c
+
+namespace Cancellative
+
+variable {A : Type u} [Semiring A]
+
+/-- 便利補題：`a ≠ 0` の下での左消去形。 -/
+theorem cancel_left (h : Cancellative A)
+    {a b c : A} (ha : a ≠ (0 : A)) (hmul : a * b = a * c) : b = c := by
+  have h' := h (a:=a) (b:=b) (c:=c) hmul
+  rcases h' with hzero | hbc
+  · exact (ha hzero).elim
+  · exact hbc
+
+end Cancellative
+
+end TropicalGeometry
+
+namespace TropicalGeometry
+
+/-- 分数の台集合：分母が 0 でない組 `(a,b)`。 -/
+def FracCarrier (A : Type u) [Semiring A] : Type u :=
+  { p : A × A // p.2 ≠ (0 : A) }
+
+namespace FracCarrier
+
+variable {A : Type u} [Semiring A]
+
+/-- 分子 / 分母（記号短縮） -/
+def num (p : FracCarrier A) : A := p.1.1
+def den (p : FracCarrier A) : A := p.1.2
+
+@[simp] lemma num_mk (a b : A) (hb : b ≠ 0) :
+    num (A:=A) ⟨(a,b), hb⟩ = a := rfl
+@[simp] lemma den_mk (a b : A) (hb : b ≠ 0) :
+    den (A:=A) ⟨(a,b), hb⟩ = b := rfl
+@[simp] lemma den_ne_zero (p : FracCarrier A) :
+    den (A:=A) p ≠ 0 := p.2
+
+/-- 同値関係の元の関係：`(a,b) ∼ (a',b') :≡ a*b' = a'*b`。 -/
+def Rel (p q : FracCarrier A) : Prop :=
+  num (A:=A) p * den (A:=A) q = num (A:=A) q * den (A:=A) p
+
+/-- 反射律。 -/
+@[simp] lemma rel_refl (p : FracCarrier A) : Rel (A:=A) p p := by
+  simp [Rel]
+
+/-- 対称律。 -/
+@[simp] lemma rel_symm {p q : FracCarrier A} :
+    Rel (A:=A) p q → Rel (A:=A) q p := by
+  intro h; simpa [Rel, mul_comm] using h.symm
+
+/-- 推移律（`A` が消去的であることを使用）。 -/
+lemma rel_trans (hC : Cancellative A)
+    {p q r : FracCarrier A} :
+    Rel (A:=A) p q → Rel (A:=A) q r → Rel (A:=A) p r := by
+  intro hpq hqr
+  have hq0 : den (A:=A) q ≠ (0 : A) := den_ne_zero (A:=A) q
+
+  -- ① (hpq) を右から r.den で掛け、形を `q.den * (p.num * r.den) = r.den * (q.num * p.den)` に整える
+  have h1' :
+      den (A:=A) q * (num (A:=A) p * den (A:=A) r)
+        = den (A:=A) r * (num (A:=A) q * den (A:=A) p) := by
+    have t := congrArg (fun x : A => x * den (A:=A) r) hpq
+    calc
+      den (A:=A) q * (num (A:=A) p * den (A:=A) r)
+          = (num (A:=A) p * den (A:=A) q) * den (A:=A) r := by ac_rfl
+      _ = (num (A:=A) q * den (A:=A) p) * den (A:=A) r := t
+      _ = den (A:=A) r * (num (A:=A) q * den (A:=A) p) := by ac_rfl
+
+  -- ② (hqr) を右から p.den で掛け、形を `q.den * (r.num * p.den) = r.den * (q.num * p.den)` に整える
+  have h2' :
+      den (A:=A) q * (num (A:=A) r * den (A:=A) p)
+        = den (A:=A) r * (num (A:=A) q * den (A:=A) p) := by
+    have t := congrArg (fun x : A => x * den (A:=A) p) hqr
+    calc
+      den (A:=A) q * (num (A:=A) r * den (A:=A) p)
+          = (num (A:=A) r * den (A:=A) q) * den (A:=A) p := by ac_rfl
+      _ = (num (A:=A) q * den (A:=A) r) * den (A:=A) p := t.symm
+      _ = den (A:=A) r * (num (A:=A) q * den (A:=A) p) := by ac_rfl
+
+  -- ③ 同じ右辺を経由して `q.den` を左から消去
+  have h3 :
+      den (A:=A) q * (num (A:=A) p * den (A:=A) r)
+        = den (A:=A) q * (num (A:=A) r * den (A:=A) p) :=
+    h1'.trans h2'.symm
+
+  have h4 :
+      num (A:=A) p * den (A:=A) r
+        = num (A:=A) r * den (A:=A) p :=
+    TropicalGeometry.Cancellative.cancel_left (A:=A) hC hq0 h3
+
+  simpa [Rel] using h4
+
+
+/-- Lem2.1.9-a`Rel` は（消去性の仮定の下で）同値関係になる。  
+    インスタンスではなく，引数つきの `Setoid` として定義。 -/
+def setoid (hC : Cancellative A) : Setoid (FracCarrier A) where
+  r := Rel (A:=A)
+  iseqv :=
+    ⟨ (by intro p; exact rel_refl (A:=A) p)
+    , (by intro p q h; exact rel_symm (A:=A) h)
+    , (by intro p q r hpq hqr; exact rel_trans (A:=A) hC hpq hqr) ⟩
+
+end FracCarrier
+end TropicalGeometry
+
+
+
+
 
 
 
