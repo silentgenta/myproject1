@@ -408,6 +408,81 @@ theorem addIdempotent_iff_nonempty_boolAlgebra
       simpa [mul_one] using hmul.symm
     exact this
 
+
+
+/-Prop2.1.7-/
+
+section OrderFromAddIdem
+
+variable (A : Type u) [Semiring A]
+
+/-- 定義：`a ≤ₐ b` を `a + b = b` とする。 -/
+def leA (a b : A) : Prop := a + b = b
+
+/-- 反射律：`a ≤ₐ a`。ここだけ加法冪等性を使う。 -/
+theorem leA_refl (h : AddIdempotent A) (a : A) : leA (A:=A) a a := by
+  unfold leA
+  simpa using h a
+
+/-- 推移律：`a ≤ₐ b → b ≤ₐ c → a ≤ₐ c`。 -/
+theorem leA_trans {a b c : A}
+    (hab : leA (A:=A) a b) (hbc : leA (A:=A) b c) :
+    leA (A:=A) a c := by
+  unfold leA at hab hbc ⊢
+  have t1 : a + c = a + (b + c) := by simp [hbc]
+  have t2 : a + (b + c) = (a + b) + c := by simp [add_assoc]
+  have t3 : (a + b) + c = b + c := by simp [hab]
+  exact t1.trans (t2.trans (t3.trans hbc))
+
+/-- 反対称律：`a ≤ₐ b ∧ b ≤ₐ a → a = b`。 -/
+theorem leA_antisymm {a b : A}
+    (hab : leA (A:=A) a b) (hba : leA (A:=A) b a) :
+    a = b := by
+  unfold leA at hab hba
+  have : a = a + b := by simpa [add_comm] using hba.symm
+  exact this.trans hab
+
+/-- `0` は最小元：`0 ≤ₐ a`。 -/
+theorem bot_leA (a : A) : leA (A:=A) (0 : A) a := by
+  unfold leA
+  simp [zero_add a]
+
+/-- 左からの乗法は単調：`a ≤ₐ b → c*a ≤ₐ c*b`。 -/
+theorem mul_left_mono_leA {a b c : A}
+    (hab : leA (A:=A) a b) :
+    leA (A:=A) (c * a) (c * b) := by
+  unfold leA at hab ⊢
+  calc
+    c * a + c * b = c * (a + b) := (Semiring.left_distrib (R:=A) c a b).symm
+    _ = c * b := by
+      have := congrArg (fun t => c * t) hab
+      simpa using this
+
+end OrderFromAddIdem
+
+
+
+
+/-! ## まとめ（図の主張と対応）
+
+- `leA_refl / leA_trans / leA_antisymm` で `≤ₐ` が半順序。
+- `bot_leA` により `0` はこの順序の最小元。
+- `mul_left_mono_leA` により，任意の `c` で左からの乗法は単調。
+
+ここでの「B 代数」は（先に示した）`AddIdempotent A` に同値な構造だと見做しているので，
+仮定は `h : AddIdempotent A` に集約している。
+-/
+
 end TropicalGeometry
+
+
+
+
+
+
+
+
+
+
 
 #min_imports
