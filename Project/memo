@@ -1,0 +1,15 @@
+import Mathlib
+
+--構造体リテラルの例
+structure Point where
+  x : ℕ
+  y : ℕ
+
+-- 位置（順番）で入れる：⟨…⟩
+def P1 : Point := ⟨1, 2⟩
+
+-- 名前で入れる：{ field := … }
+def P2 : Point := { x := 1, y := 2 }
+
+-- この2つは定義的に同じ
+example : P1 = P2 := rfl
