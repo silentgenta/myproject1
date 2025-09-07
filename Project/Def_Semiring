@@ -96,7 +96,7 @@ namespace SemiringHomomorphism
 variable {S1 : Type u} {S2 : Type v} {S3 : Type w}
 variable [Semiring S1] [Semiring S2] [Semiring S3]
 
---今後関数として使えるようにする。これがないといちいちf.toFun xと書かなきゃいけなくなる。
+--今後ただの構造だってSemiringhomomorphismを関数として使えるようにする。これがないといちいちf.toFun xと書かなきゃいけなくなる。
 instance : CoeFun (SemiringHomomorphism S1 S2) (fun _ => S1 → S2) where
   coe f := f.toFun
 
@@ -117,7 +117,7 @@ instance : CoeFun (SemiringHomomorphism S1 S2) (fun _ => S1 → S2) where
     f (1 : S1) = (1 : S2) :=
   f.map_one
 
-/-- 恒等準同型 -/
+--恒等準同型の定義
 def id (S : Type u) [Semiring S] : SemiringHomomorphism S S where
   toFun := fun x => x
   map_add := by intro a b; rfl
@@ -130,7 +130,7 @@ def id (S : Type u) [Semiring S] : SemiringHomomorphism S S where
 variable {S1 : Type u} {S2 : Type v} {S3 : Type w}
 variable [Semiring S1] [Semiring S2] [Semiring S3]
 
-/-- 準同型の合成（`simp` を使わず明示的に証明） -/
+--準同型の合成の定義。半環準同型に必要な５要素を順に証明
 def comp (g : SemiringHomomorphism S2 S3) (f : SemiringHomomorphism S1 S2) :
     SemiringHomomorphism S1 S3 where
   toFun := fun x => g (f x)
@@ -138,8 +138,9 @@ def comp (g : SemiringHomomorphism S2 S3) (f : SemiringHomomorphism S1 S2) :
     intro a b
     calc
       g (f (a + b)) = g (f a + f b) := by
-        exact congrArg (fun x => g x) (f.map_add a b)
-      _ = g (f a) + g (f b) := by
+        exact congrArg (fun x => g x) (f.map_add a b) 
+        --congrArgは両辺に同じ関数を適用してよいという補題。f.map_addの両辺にgを適用したということ
+      _ = g (f a) + g (f b) := by --_はg (f a + f b)
         exact g.map_add (f a) (f b)
   map_mul := by
     intro a b
@@ -173,13 +174,13 @@ variable {A : Type u} {B : Type v} [Semiring A] [Semiring B]
 
 def ofHom (Ψ : SemiringHomomorphism B A) : Algebra A B :=
   ⟨Ψ⟩
+--semiringhomoには名前のついていない関数があるのでそれをΨと名付ける。
 
 @[reducible] def algebraMap [h : Algebra A B] : SemiringHomomorphism B A :=
   h.hom
+--AとBの間に必ず存在する半環準同型を一つ取り出すことが出来るようになる。reducibleにすることでalgeMapを使うと自動でh.homのような必ず存在する半環準同型を呼び出してくれる。
 
 --simp用
-
-
 variable {A : Type u} {B : Type v} [Semiring A] [Semiring B]
 
 @[simp] lemma map_add [Algebra A B] (x y : B) :
@@ -231,9 +232,7 @@ variable [Algebra X A] [Algebra Y A]
 end AlgHom
 
 
-/-- A-代数準同型の存在の命題（Prop）：
-    既存の `[Algebra X A]` と `[Algebra Y A]` のもとで
-    「`∃ Ψ, g = Ψ ∘ f`」を主張する。 -/
+--A-代数準同型の存在
 def AlgebraRel (A : Type u) (X : Type v) (Y : Type w)
   [Semiring A] [Semiring X] [Semiring Y]
   [Algebra X A] [Algebra Y A] : Prop :=
@@ -242,8 +241,6 @@ def AlgebraRel (A : Type u) (X : Type v) (Y : Type w)
       (Algebra.algebraMap (A:=X) (B:=A))
     = (Algebra.algebraMap (A:=Y) (B:=A))
 
-/-- 3引数の存在命題のための**専用スコープ記法**。
-    `open scoped TGAlgRel` で `AlgRel A X Y` と書ける。 -/
 scoped[TGAlgRel] notation "AlgRel " A:arg X:arg Y:arg =>
   TropicalGeometry.AlgebraRel A X Y
 
@@ -253,7 +250,7 @@ variable {A : Type u} {X : Type v} {Y : Type w}
 variable [Semiring A] [Semiring X] [Semiring Y]
 variable [Algebra X A] [Algebra Y A]
 
-/-- 具体的な Ψ と可換性から、存在命題を導入。 -/
+--具体的な Ψ と可換性
 theorem intro
   (Ψ : SemiringHomomorphism X Y)
   (h : SemiringHomomorphism.comp Ψ
@@ -262,23 +259,23 @@ theorem intro
   AlgebraRel A X Y :=
   ⟨Ψ, h⟩
 
-/-- 存在命題から **ひとつ**の Ψ を（選択で）取り出す。 -/
+--ひとつΨを取り出す。 
 noncomputable def psi (H : AlgebraRel A X Y) : SemiringHomomorphism X Y :=
   Classical.choose H
 
-/-- 取り出した Ψ は三角形を可換にする。 -/
+--取り出したΨが図式を可換にする。 
 @[simp] theorem comm (H : AlgebraRel A X Y) :
     SemiringHomomorphism.comp (psi (A:=A) (X:=X) (Y:=Y) H)
       (Algebra.algebraMap (A:=X) (B:=A))
   = (Algebra.algebraMap (A:=Y) (B:=A)) :=
   Classical.choose_spec H
 
-/-- 可換性の点ごと版。 -/
+--可換性の点ごとver
 @[simp] theorem comm_apply (H : AlgebraRel A X Y) (a : A) :
     (psi (A:=A) (X:=X) (Y:=Y) H)
       (Algebra.algebraMap (A:=X) (B:=A) a)
   = (Algebra.algebraMap (A:=Y) (B:=A) a) := by
-  -- `comm` を取り出して `congrArg` を適用するだけ
+  -- commを取り出してcongrArgを適用するだけ
   have hc := comm (A:=A) (X:=X) (Y:=Y) H
   exact congrArg (fun (φ : SemiringHomomorphism A Y) => φ a) hc
 
@@ -304,24 +301,24 @@ variable {A : Type u} {X : Type v} {Y : Type w}
 variable [Semiring A] [Semiring X] [Semiring Y]
 variable [Algebra X A] [Algebra Y A]
 
-/-- 同型の順方向の底の準同型を取り出す。 -/
+-- 同型の順方向の底の準同型を取り出す。 
 @[simp] def toAlgHom (e : AlgIso A X Y) : AlgHom A X Y := e.toHom
-/-- 同型の逆方向の底の準同型を取り出す。 -/
+-- 同型の逆方向の底の準同型を取り出す。 
 @[simp] def invAlgHom (e : AlgIso A X Y) : AlgHom A Y X := e.invHom
 
-/-- 左逆（点ごと版）：`e.inv ∘ e` は恒等。 -/
+--e.inv ∘ eはidentity
 @[simp] lemma left_inv_apply (e : AlgIso A X Y) (x : X) :
     e.invHom.toHom (e.toHom.toHom x) = x := by
-  -- `left_inv : comp inv to = id` に `x` を適用
+  -- left_inv : comp inv to = idにxを適用
   exact congrArg (fun (φ : SemiringHomomorphism X X) => φ x) e.left_inv
 
-/-- 右逆（点ごと版）：`e ∘ e.inv` は恒等。 -/
+--e ∘ e.invはidentity
 @[simp] lemma right_inv_apply (e : AlgIso A X Y) (y : Y) :
     e.toHom.toHom (e.invHom.toHom y) = y := by
-  -- `right_inv : comp to inv = id` に `y` を適用
+  -- right_inv : comp to inv = idにyを適用
   exact congrArg (fun (φ : SemiringHomomorphism Y Y) => φ y) e.right_inv
 
-/-- 対称性（逆同型）。 -/
+--対称性
 def symm (e : AlgIso A X Y) : AlgIso A Y X where
   toHom     := e.invHom
   invHom    := e.toHom
@@ -330,8 +327,7 @@ def symm (e : AlgIso A X Y) : AlgIso A Y X where
 
 end AlgIso
 
-
-/-! 𝔹 をこのファイルの `Semiring` にする（未定義なら有効化） -/
+--𝔹の導入
 instance : Semiring 𝔹 where
   mul_zero := by intro a; cases a <;> rfl
   zero_mul := by intro a; cases a <;> rfl
@@ -340,10 +336,10 @@ instance : Semiring 𝔹 where
   right_distrib := by
     intro a b c; cases a <;> cases b <;> cases c <;> rfl
 
-/-- 𝔹 では `1 + 1 = 1`（定義通り） -/
+--1 + 1 = 1
 @[simp] lemma B_one_add_one : ((1 : 𝔹) + (1 : 𝔹)) = (1 : 𝔹) := rfl
 
-/-- `A` が加法冪等なら，標準写像 `𝔹 → A` を半環準同型として構成。 -/
+--Aが加法冪等のとき，𝔹 → Aで半環準同型となる
 def boolHomOfAddIdem (A : Type u) [Semiring A]
     (h : AddIdempotent A) : SemiringHomomorphism 𝔹 A :=
 { toFun := fun x =>
@@ -410,21 +406,21 @@ theorem addIdempotent_iff_nonempty_boolAlgebra
 
 
 
-/-! # 「B 代数（= 加法冪等半環）」で定める順序 `≤ₐ` の基本性質 -/
+--≤ₐの定義
 
 section OrderFromAddIdem
 
 variable (A : Type u) [Semiring A]
 
-/-- 定義：`a ≤ₐ b` を `a + b = b` とする。 -/
+--a ≤ₐ bをa + b = bとする。
 def leA (a b : A) : Prop := a + b = b
 
-/-- 反射律：`a ≤ₐ a`。ここだけ加法冪等性を使う。 -/
+--反射律
 theorem leA_refl (h : AddIdempotent A) (a : A) : leA (A:=A) a a := by
   unfold leA
   simpa using h a
 
-/-- 推移律：`a ≤ₐ b → b ≤ₐ c → a ≤ₐ c`。 -/
+--推移律
 theorem leA_trans {a b c : A}
     (hab : leA (A:=A) a b) (hbc : leA (A:=A) b c) :
     leA (A:=A) a c := by
@@ -434,7 +430,7 @@ theorem leA_trans {a b c : A}
   have t3 : (a + b) + c = b + c := by simp [hab]
   exact t1.trans (t2.trans (t3.trans hbc))
 
-/-- 反対称律：`a ≤ₐ b ∧ b ≤ₐ a → a = b`。 -/
+--反対称律
 theorem leA_antisymm {a b : A}
     (hab : leA (A:=A) a b) (hba : leA (A:=A) b a) :
     a = b := by
@@ -442,12 +438,12 @@ theorem leA_antisymm {a b : A}
   have : a = a + b := by simpa [add_comm] using hba.symm
   exact this.trans hab
 
-/-- `0` は最小元：`0 ≤ₐ a`。 -/
+--0は最小元
 theorem bot_leA (a : A) : leA (A:=A) (0 : A) a := by
   unfold leA
   simp [zero_add a]
 
-/-- 左からの乗法は単調：`a ≤ₐ b → c*a ≤ₐ c*b`。 -/
+--mul_left
 theorem mul_left_mono_leA {a b c : A}
     (hab : leA (A:=A) a b) :
     leA (A:=A) (c * a) (c * b) := by
@@ -459,28 +455,13 @@ theorem mul_left_mono_leA {a b c : A}
       simpa using this
 
 end OrderFromAddIdem
-
-
-
-
-/-! ## まとめ（図の主張と対応）
-
-- `leA_refl / leA_trans / leA_antisymm` で `≤ₐ` が半順序。
-- `bot_leA` により `0` はこの順序の最小元。
-- `mul_left_mono_leA` により，任意の `c` で左からの乗法は単調。
-
-ここでの「B 代数」は（先に示した）`AddIdempotent A` に同値な構造だと見做しているので，
-仮定は `h : AddIdempotent A` に集約している。
--/
-
 end TropicalGeometry
 
 universe u
 
 namespace TropicalGeometry
 
-/-- 半環 `A` が**消去的 (cancellative)** であるとは，
-`∀ a b c, a*b = a*c → (a = 0 ∨ b = c)` が成り立つこと。 -/
+--cancellative
 def Cancellative (A : Type u) [Semiring A] : Prop :=
   ∀ ⦃a b c : A⦄, a * b = a * c → a = (0 : A) ∨ b = c
 
@@ -488,7 +469,7 @@ namespace Cancellative
 
 variable {A : Type u} [Semiring A]
 
-/-- 便利補題：`a ≠ 0` の下での左消去形。 -/
+--こんご便利になる(らしい)補題
 theorem cancel_left (h : Cancellative A)
     {a b c : A} (ha : a ≠ (0 : A)) (hmul : a * b = a * c) : b = c := by
   have h' := h (a:=a) (b:=b) (c:=c) hmul
@@ -502,7 +483,7 @@ end TropicalGeometry
 
 namespace TropicalGeometry
 
-/-- 分数の台集合：分母が 0 でない組 `(a,b)`。 -/
+--分母が 0 でない組 (a,b)の集合を定義
 def FracCarrier (A : Type u) [Semiring A] : Type u :=
   { p : A × A // p.2 ≠ (0 : A) }
 
@@ -510,7 +491,7 @@ namespace FracCarrier
 
 variable {A : Type u} [Semiring A]
 
-/-- 分子 / 分母（記号短縮） -/
+-- 分子 / 分母を記号で短縮
 def num (p : FracCarrier A) : A := p.1.1
 def den (p : FracCarrier A) : A := p.1.2
 
@@ -521,27 +502,27 @@ def den (p : FracCarrier A) : A := p.1.2
 @[simp] lemma den_ne_zero (p : FracCarrier A) :
     den (A:=A) p ≠ 0 := p.2
 
-/-- 同値関係の元の関係：`(a,b) ∼ (a',b') :≡ a*b' = a'*b`。 -/
+--同値関係
 def Rel (p q : FracCarrier A) : Prop :=
   num (A:=A) p * den (A:=A) q = num (A:=A) q * den (A:=A) p
 
-/-- 反射律。 -/
+--反射律
 @[simp] lemma rel_refl (p : FracCarrier A) : Rel (A:=A) p p := by
   simp [Rel]
 
-/-- 対称律。 -/
+--対称律
 @[simp] lemma rel_symm {p q : FracCarrier A} :
     Rel (A:=A) p q → Rel (A:=A) q p := by
   intro h; simpa [Rel, mul_comm] using h.symm
 
-/-- 推移律（`A` が消去的であることを使用）。 -/
+--推移律
 lemma rel_trans (hC : Cancellative A)
     {p q r : FracCarrier A} :
     Rel (A:=A) p q → Rel (A:=A) q r → Rel (A:=A) p r := by
   intro hpq hqr
   have hq0 : den (A:=A) q ≠ (0 : A) := den_ne_zero (A:=A) q
 
-  -- ① (hpq) を右から r.den で掛け、形を `q.den * (p.num * r.den) = r.den * (q.num * p.den)` に整える
+  -- ① (hpq) を右から r.den で掛け、形を q.den * (p.num * r.den) = r.den * (q.num * p.den)に整える
   have h1' :
       den (A:=A) q * (num (A:=A) p * den (A:=A) r)
         = den (A:=A) r * (num (A:=A) q * den (A:=A) p) := by
@@ -552,7 +533,7 @@ lemma rel_trans (hC : Cancellative A)
       _ = (num (A:=A) q * den (A:=A) p) * den (A:=A) r := t
       _ = den (A:=A) r * (num (A:=A) q * den (A:=A) p) := by ac_rfl
 
-  -- ② (hqr) を右から p.den で掛け、形を `q.den * (r.num * p.den) = r.den * (q.num * p.den)` に整える
+  -- ② (hqr) を右から p.den で掛け、形を q.den * (r.num * p.den) = r.den * (q.num * p.den)に整える
   have h2' :
       den (A:=A) q * (num (A:=A) r * den (A:=A) p)
         = den (A:=A) r * (num (A:=A) q * den (A:=A) p) := by
@@ -563,7 +544,7 @@ lemma rel_trans (hC : Cancellative A)
       _ = (num (A:=A) q * den (A:=A) r) * den (A:=A) p := t.symm
       _ = den (A:=A) r * (num (A:=A) q * den (A:=A) p) := by ac_rfl
 
-  -- ③ 同じ右辺を経由して `q.den` を左から消去
+  -- ③ 同じ右辺を経由して q.den を左から消去
   have h3 :
       den (A:=A) q * (num (A:=A) p * den (A:=A) r)
         = den (A:=A) q * (num (A:=A) r * den (A:=A) p) :=
@@ -577,8 +558,7 @@ lemma rel_trans (hC : Cancellative A)
   simpa [Rel] using h4
 
 
-/-- Lem2.1.9-a`Rel` は（消去性の仮定の下で）同値関係になる。  
-    インスタンスではなく，引数つきの `Setoid` として定義。 -/
+-- Lem2.1.9-aのRelは（cancellativeの下で）同値関係になる。  
 def setoid (hC : Cancellative A) : Setoid (FracCarrier A) where
   r := Rel (A:=A)
   iseqv :=
@@ -588,19 +568,5 @@ def setoid (hC : Cancellative A) : Setoid (FracCarrier A) where
 
 end FracCarrier
 end TropicalGeometry
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 #min_imports
