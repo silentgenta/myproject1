@@ -569,4 +569,54 @@ def setoid (hC : Cancellative A) : Setoid (FracCarrier A) where
 end FracCarrier
 end TropicalGeometry
 
+namespace TropicalGeometry
+open Classical
+
+/- 商集合 Q(A) を作り、要素を a/b と書けるようにする -/
+
+section QuotBasic
+variable {A : Type u} [Semiring A]
+variable (hC : Cancellative A)
+
+/-- A の分数の商集合：`Q(A) := {(a,b) | b ≠ 0}/∼` -/
+def Q : Type u := Quot (FracCarrier.setoid (A:=A) hC)
+
+/-- 基本コンストラクタ：`a/b`（ただし `b ≠ 0`）を同値類に持ち上げる。 -/
+def Q.mk (a b : A) (hb : b ≠ 0) : Q (A:=A) hC :=
+  Quot.mk _ ⟨(a,b), hb⟩
+
+/-- 「非零の分母」を包むミニ構造体。`⟨b, hb⟩ : NZDen A`。 -/
+structure NZDen (A : Type u) [Semiring A] : Type u where
+  val     : A
+  ne_zero : val ≠ 0
+
+namespace Q
+
+/-- 記法 `a / ⟨b, hb⟩` の本体：`Q.mk a b hb`。 -/
+def ofPair (a : A) (b : NZDen A) : Q (A:=A) hC :=
+  Q.mk (A:=A) hC a b.val b.ne_zero
+
+end Q
+
+/-! ### 記法
+
+- まずこのセクション内だけ有効な **ローカル記法**。
+  セクション変数 `hC` が見えるので、`a / b` がそのまま使えます。
+- 併せて、任意の場所で使える **スコープ付き記法** `a /[hC] b` も用意。
+  こちらは `hC` を明示するので前チェックに引っかかりません。
+-/
+
+/-- セクション内限定：`a / b : Q(A,hC)` （`b : NZDen A`） --/
+local notation a:70 " / " b:71 =>
+  TropicalGeometry.Q.ofPair (A:=A) hC a b
+
+/-- どこでも使える版：`a /[hC] b` （`b : NZDen A`） --/
+scoped[TGFrac] notation a:70 " /[" hC:71 "] " b:71 =>
+  TropicalGeometry.Q.ofPair (A:=_) hC a b
+
+end QuotBasic
+end TropicalGeometry
+
+
+
 #min_imports
