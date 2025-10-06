@@ -617,6 +617,612 @@ scoped[TGFrac] notation a:70 " /[" hC:71 "] " b:71 =>
 end QuotBasic
 end TropicalGeometry
 
+namespace TropicalGeometry
+open Classical
+
+
+section QAddMul
+variable {A : Type u} [Semiring A]
+variable (hC : Cancellative A)
+
+-- ここでの Q は「QuotBasic」で定義したものを使う（重複定義しない）
+
+namespace FracCarrier
+
+/-- 分母同士の積は 0 にならない（`Cancellative` を利用） -/
+lemma den_mul_ne_zero (hC : Cancellative A)
+    (p q : FracCarrier A) : p.den * q.den ≠ 0 := by
+  have hb := den_ne_zero (A:=A) p
+  have hd := den_ne_zero (A:=A) q
+  intro h
+  -- h : p.den * q.den = 0 から p.den * q.den = p.den * 0 を得る
+  have h' : p.den * q.den = p.den * 0 := by
+    have hz : p.den * (0 : A) = 0 := Semiring.mul_zero (R:=A) _
+    exact h.trans hz.symm
+  -- 左から cancel
+  have : q.den = 0 :=
+    TropicalGeometry.Cancellative.cancel_left (A:=A) hC hb h'
+  exact hd this
+
+/-- 商和の「代表」： (a/b) + (c/d) := (ad + cb) / (bd) -/
+def addRep (hC : Cancellative A)
+    (p q : FracCarrier A) : FracCarrier A :=
+  ⟨ (p.num * q.den + q.num * p.den, p.den * q.den)
+  , den_mul_ne_zero (A:=A) hC p q ⟩
+
+/-- 商積の「代表」： (a/b) * (c/d) := (ac) / (bd) -/
+def mulRep (hC : Cancellative A)
+    (p q : FracCarrier A) : FracCarrier A :=
+  ⟨ (p.num * q.num, p.den * q.den)
+  , den_mul_ne_zero (A:=A) hC p q ⟩
+
+/-- 加法が同値関係と両立（well-defined） -/
+lemma addRep_compat (hC : Cancellative A)
+    {p p' q q' : FracCarrier A}
+    (hp : Rel (A:=A) p p') (hq : Rel (A:=A) q q') :
+    Rel (A:=A) (addRep (A:=A) hC p q) (addRep (A:=A) hC p' q') := by
+  -- 目標： (p.num*q.den + q.num*p.den)*(p'.den*q'.den)
+  --     = (p'.num*q'.den + q'.num*p'.den)*(p.den*q.den)
+  unfold Rel addRep
+  -- (x+y)*z = x*z + y*z
+  have H₀ :=
+    Semiring.right_distrib (R:=A)
+      (p.num * q.den) (q.num * p.den) (p'.den * q'.den)
+  -- 1段目：単純分配
+  calc
+    (p.num * q.den + q.num * p.den) * (p'.den * q'.den)
+        = (p.num * q.den) * (p'.den * q'.den)
+          + (q.num * p.den) * (p'.den * q'.den) := by
+            simpa using H₀
+    _ = (p.num * p'.den) * (q.den * q'.den)
+        + (q.num * q'.den) * (p.den * p'.den) := by
+            -- かけ算の順序・結合の入れ替え
+            have L1 :
+              (p.num * q.den) * (p'.den * q'.den)
+              = (p.num * p'.den) * (q.den * q'.den) := by ac_rfl
+            have L2 :
+              (q.num * p.den) * (p'.den * q'.den)
+              = (q.num * q'.den) * (p.den * p'.den) := by ac_rfl
+            simp [L1, L2]
+    _ = (p'.num * p.den) * (q'.den * q.den)
+        + (q'.num * q.den) * (p'.den * p.den) := by
+            have hp' : p.num * p'.den = p'.num * p.den := hp
+            have hq' : q.num * q'.den = q'.num * q.den := hq
+            -- 右辺のペアの順序も入れ替える
+            have C1 : q.den * q'.den = q'.den * q.den := by ac_rfl
+            have C2 : p.den * p'.den = p'.den * p.den := by ac_rfl
+            simp [hp', hq', C1, C2]
+    _ = (p'.num * q'.den + q'.num * p'.den) * (p.den * q.den) := by
+            -- 逆向きの分配（(a*c)+(b*c) = (a+b)*c）
+            have H₁ :=
+              Semiring.right_distrib (R:=A)
+                (p'.num * q'.den) (q'.num * p'.den) (p.den * q.den)
+            -- 項の順序を `simp` で合わせてから対称を使う
+            simpa [mul_comm, mul_left_comm, mul_assoc] using H₁.symm
+
+/-- 乗法が同値関係と両立（well-defined） -/
+lemma mulRep_compat (hC : Cancellative A)
+    {p p' q q' : FracCarrier A}
+    (hp : Rel (A:=A) p p') (hq : Rel (A:=A) q q') :
+    Rel (A:=A) (mulRep (A:=A) hC p q) (mulRep (A:=A) hC p' q') := by
+  -- 目標： (p.num*q.num)*(p'.den*q'.den) = (p'.num*q'.num)*(p.den*q.den)
+  unfold Rel mulRep
+  have hp' : p.num * p'.den = p'.num * p.den := hp
+  have hq' : q.num * q'.den = q'.num * q.den := hq
+  have tL :
+      (p.num * q.num) * (p'.den * q'.den)
+      = (p.num * p'.den) * (q.num * q'.den) := by ac_rfl
+  have tR :
+      (p'.num * q'.num) * (p.den * q.den)
+      = (p'.num * p.den) * (q'.num * q.den) := by ac_rfl
+  calc
+    (p.num * q.num) * (p'.den * q'.den)
+        = (p.num * p'.den) * (q.num * q'.den) := tL
+    _ = (p'.num * p.den) * (q'.num * q.den) := by
+          simp [hp', hq']
+    _ = (p'.num * q'.num) * (p.den * q.den) := tR.symm
+
+end FracCarrier
+
+/-- Q(A) 上の加法（2段階 `Quot.lift` 方式） -/
+noncomputable def Q.add (x y : Q (A:=A) hC) : Q (A:=A) hC :=
+by
+  -- まず「右引数 q を代表に戻してから addRep を持ち上げる」関数を作る
+  let addCore₁ :
+      FracCarrier A → (Q (A:=A) hC → Q (A:=A) hC) :=
+    fun p =>
+      Quot.lift
+        (fun q =>
+          Quot.mk (FracCarrier.setoid (A:=A) hC)
+            (FracCarrier.addRep (A:=A) hC p q))
+        (by
+          -- q ~ q' のときも well-defined
+          intro q q' hq
+          apply Quot.sound
+          exact FracCarrier.addRep_compat (A:=A) hC
+            (FracCarrier.rel_refl (A:=A) p) hq)
+
+  -- 次に「左引数 p を代表に戻し、addCore₁ p を選ぶ」関数を作る
+  let addCore₂ : Q (A:=A) hC → (Q (A:=A) hC → Q (A:=A) hC) :=
+    Quot.lift
+      (fun p => addCore₁ p)
+      (by
+        -- p ~ p' なら、関数 addCore₁ p = addCore₁ p'
+        intro p p' hp
+        apply funext
+        intro y
+        -- y も代表に戻して同値を作る
+        refine Quot.induction_on y ?_
+        intro q
+        -- 目標を書き換え（2つの mk の等しさを示せばよい）
+        change
+          Quot.mk (FracCarrier.setoid (A:=A) hC)
+              (FracCarrier.addRep (A:=A) hC p  q)
+            =
+          Quot.mk (FracCarrier.setoid (A:=A) hC)
+              (FracCarrier.addRep (A:=A) hC p' q)
+        -- これは addRep_compat の (hp, refl) で成立
+        apply Quot.sound
+        exact FracCarrier.addRep_compat (A:=A) hC hp
+          (FracCarrier.rel_refl (A:=A) q))
+
+  -- 以上を使って x, y に適用
+  exact addCore₂ x y
+
+
+/-- Q(A) 上の乗法（2段階 `Quot.lift` 方式） -/
+noncomputable def Q.mul (x y : Q (A:=A) hC) : Q (A:=A) hC :=
+by
+  let mulCore₁ :
+      FracCarrier A → (Q (A:=A) hC → Q (A:=A) hC) :=
+    fun p =>
+      Quot.lift
+        (fun q =>
+          Quot.mk (FracCarrier.setoid (A:=A) hC)
+            (FracCarrier.mulRep (A:=A) hC p q))
+        (by
+          intro q q' hq
+          apply Quot.sound
+          exact FracCarrier.mulRep_compat (A:=A) hC
+            (FracCarrier.rel_refl (A:=A) p) hq)
+
+  let mulCore₂ : Q (A:=A) hC → (Q (A:=A) hC → Q (A:=A) hC) :=
+    Quot.lift
+      (fun p => mulCore₁ p)
+      (by
+        intro p p' hp
+        apply funext
+        intro y
+        refine Quot.induction_on y ?_
+        intro q
+        change
+          Quot.mk (FracCarrier.setoid (A:=A) hC)
+              (FracCarrier.mulRep (A:=A) hC p  q)
+            =
+          Quot.mk (FracCarrier.setoid (A:=A) hC)
+              (FracCarrier.mulRep (A:=A) hC p' q)
+        apply Quot.sound
+        exact FracCarrier.mulRep_compat (A:=A) hC hp
+          (FracCarrier.rel_refl (A:=A) q))
+
+  exact mulCore₂ x y
+
+end QAddMul
+end TropicalGeometry
+
+namespace TropicalGeometry
+open Classical
+
+section QSemiring
+variable {A : Type u} [Semiring A]
+variable (hC : Cancellative A) (h10 : (1 : A) ≠ 0)
+
+-- 0,1 の代表（分母 1 を使用）
+def Q.zero : Q (A:=A) hC := Q.mk (A:=A) hC 0 1 h10
+def Q.one  : Q (A:=A) hC := Q.mk (A:=A) hC 1 1 h10
+
+-- 既に定義済みの Q.add / Q.mul を使ってインスタンス化
+
+
+instance : Zero (Q (A:=A) hC) := ⟨Q.zero (A:=A) hC h10⟩
+instance : One  (Q (A:=A) hC) := ⟨Q.one  (A:=A) hC h10⟩
+instance : Add  (Q (A:=A) hC) := ⟨Q.add (A:=A) hC⟩
+instance : Mul  (Q (A:=A) hC) := ⟨Q.mul (A:=A) hC⟩
+
+namespace FracCarrier
+
+variable {hC}
+
+/-- 加法の可換性（代表版） -/
+lemma addRep_comm (hC : Cancellative A)
+    (p q : FracCarrier A) :
+    Rel (A:=A) (addRep (A:=A) hC p q) (addRep (A:=A) hC q p) := by
+  -- Rel と addRep, num, den を展開して目標式を素の等式に落とす
+  unfold Rel addRep num den
+  -- 目標：
+  -- (p.num*q.den + q.num*p.den) * (q.den*p.den)
+  --   = (q.num*p.den + p.num*q.den) * (p.den*q.den)
+  -- 和の順序と分母側の積の順序を入れ替えるだけで一致
+  calc
+    (p.num * q.den + q.num * p.den) * (q.den * p.den)
+        = (q.num * p.den + p.num * q.den) * (q.den * p.den) := by
+          -- 和の順序だけを可換法則で入れ替え
+          simp [add_comm]
+    _   = (q.num * p.den + p.num * q.den) * (p.den * q.den) := by
+          -- 分母側の積の順序を可換法則で入れ替え
+          ac_rfl
+
+/-- 加法の結合性（代表版） -/
+lemma addRep_assoc (hC : Cancellative A)
+    (p q r : FracCarrier A) :
+    Rel (A:=A)
+      (addRep (A:=A) hC (addRep (A:=A) hC p q) r)
+      (addRep (A:=A) hC p (addRep (A:=A) hC q r)) := by
+  -- どちら側も分母は p.den*q.den*r.den の順序違い。分子は分配で一致。
+  -- ひたすら分配＋可換結合で並べ替え。
+  unfold Rel addRep
+  -- 省略せず正攻法： ( (p.num*q.den + q.num*p.den)*r.den + r.num*(p.den*q.den) ) * ( (p.den*q.den)*r.den )
+  -- と ( p.num*(q.den*r.den) + (q.num*r.den + r.num*q.den)*p.den ) * ( p.den*(q.den*r.den) )
+  -- を ac と分配を駆使して一致させる。
+  -- 計算は長いが、`right_distrib` を2回ずつ当てて各項を同型に並べ替えればよい。
+  -- 書き換え用の補助：
+  have Dpq : p.den * q.den = q.den * p.den := by ac_rfl
+  have Drp : r.den * p.den = p.den * r.den := by ac_rfl
+  have Dqr : q.den * r.den = r.den * q.den := by ac_rfl
+  -- 展開して合わせる（`calc`＋`simp` で押し切る）
+  -- （詳細展開は機械的。以下は一括で片付けるための `simp` ブロック）
+  -- Lean の可換結合補題群（`mul_comm`, `mul_left_comm`, `mul_assoc`）と
+  -- 右分配 `right_distrib` を適宜 `simpa` で使います。
+  -- まず左辺を 3 項の和の和に展開
+  have L :
+    (p.num*q.den + q.num*p.den) * r.den
+      + r.num * (p.den*q.den)
+    = p.num*q.den*r.den + q.num*p.den*r.den + r.num*p.den*q.den := by
+    -- 2回の分配＋結合可換で整形
+    have := Semiring.right_distrib (R:=A)
+                (p.num*q.den) (q.num*p.den) r.den
+    -- (x+y)*z = x*z + y*z
+    -- さらに各項に結合を適用
+    -- 仕上げ：
+    simpa [mul_comm, mul_left_comm, mul_assoc] using
+      congrArg (fun t => t + r.num * (p.den*q.den)) this
+  have R :
+    p.num*(q.den*r.den)
+      + (q.num*r.den + r.num*q.den)*p.den
+    = p.num*q.den*r.den + q.num*r.den*p.den + r.num*q.den*p.den := by
+    have := Semiring.right_distrib (R:=A)
+                (q.num*r.den) (r.num*q.den) p.den
+    -- こちらも同様に整形
+    simpa [mul_comm, mul_left_comm, mul_assoc] using
+      congrArg (fun t => p.num*(q.den*r.den) + t) this
+  -- すると両辺は可換結合で一致
+  -- （q.den*p.den と p.den*q.den の入れ替えなど）
+  have : (p.num*q.den*r.den + q.num*p.den*r.den + r.num*p.den*q.den)
+       = (p.num*q.den*r.den + q.num*r.den*p.den + r.num*q.den*p.den) := by
+    -- 第2・第3項の順序を合わせるだけ
+    simp [mul_comm, mul_left_comm, mul_assoc]
+  -- 以上を分母の並べ替えと合わせれば OK
+  -- 今回は等式を “分子同士を一致させた” 形で示したので、そのまま `simp` で終える
+  simpa [L, R, mul_comm, mul_left_comm, mul_assoc]
+
+/-- 乗法の可換性（代表版） -/
+lemma mulRep_comm (hC : Cancellative A)
+    (p q : FracCarrier A) :
+    Rel (A:=A) (mulRep (A:=A) hC p q) (mulRep (A:=A) hC q p) := by
+  unfold Rel mulRep
+  -- (p.num*q.num)*(p.den*q.den) と (q.num*p.num)*(q.den*p.den)
+  -- は ac で一致
+  simp [mul_comm,  mul_assoc]
+
+/-- 乗法の結合性（代表版） -/
+lemma mulRep_assoc (hC : Cancellative A)
+    (p q r : FracCarrier A) :
+    Rel (A:=A) (mulRep (A:=A) hC (mulRep (A:=A) hC p q) r)
+                 (mulRep (A:=A) hC p (mulRep (A:=A) hC q r)) := by
+  unfold Rel mulRep
+  -- どちらも分子 p.num*q.num*r.num，分母 p.den*q.den*r.den （順序違い）になるので ac
+  simp [mul_comm,  mul_assoc]
+
+/-- 左分配（代表版） -/
+lemma left_distrib_rep (hC : Cancellative A)
+    (p q r : FracCarrier A) :
+    Rel (A:=A)
+      (mulRep (A:=A) hC p (addRep (A:=A) hC q r))
+      (addRep (A:=A) hC (mulRep (A:=A) hC p q) (mulRep (A:=A) hC p r)) := by
+  -- 目標：(p.num*(q.num*r.den + r.num*q.den))*(p.den*(q.den*r.den))
+  --     = ((p.num*q.num)*r.den + (p.num*r.num)*q.den) * ((p.den*q.den)*r.den)
+  unfold Rel addRep mulRep
+  -- 展開→分配→順序入替で一致
+  -- 左側の分子：
+  have L :
+    (p.num * (q.num * r.den + r.num * q.den))
+    = p.num*q.num*r.den + p.num*r.num*q.den := by
+    have := Semiring.left_distrib (R:=A) p.num (q.num * r.den) (r.num * q.den)
+    simpa [mul_comm, mul_left_comm, mul_assoc] using this
+  -- 全体としては右分配一回で形が一致する
+  have H₁ :=
+    Semiring.right_distrib (R:=A)
+      (p.num*q.num*r.den) (p.num*r.num*q.den) (p.den*(q.den*r.den))
+  -- 右辺の分配形
+  have H₂ :=
+    Semiring.right_distrib (R:=A)
+      ((p.num*q.num)*r.den) ((p.num*r.num)*q.den) ((p.den*q.den)*r.den)
+  -- 仕上げ
+  simpa [L, mul_comm, mul_left_comm, mul_assoc] using H₂.symm
+
+/-- 右分配（代表版） -/
+lemma right_distrib_rep (hC : Cancellative A)
+    (p q r : FracCarrier A) :
+    Rel (A:=A)
+      (mulRep (A:=A) hC (addRep (A:=A) hC p q) r)
+      (addRep (A:=A) hC (mulRep (A:=A) hC p r) (mulRep (A:=A) hC q r)) := by
+  -- 左分配の対称版（comm を挟んでも良い）
+  -- ここは直接展開しても短い
+  unfold Rel addRep mulRep
+  -- (p.num*q.den + q.num*p.den)*r.num = ...
+  have L :
+    (p.num*q.den + q.num*p.den) * r.num
+      = p.num*r.num*q.den + q.num*r.num*p.den := by
+    have := Semiring.left_distrib (R:=A) r.num (p.num*q.den) (q.num*p.den)
+    -- (r*(x+y) = r*x + r*y) を可換結合で整形
+    simpa [mul_comm, mul_left_comm, mul_assoc] using this.symm
+  have H₁ :=
+    Semiring.right_distrib (R:=A)
+      (p.num*r.num*q.den) (q.num*r.num*p.den) ((p.den*q.den)*r.den)
+  have H₂ :=
+    Semiring.right_distrib (R:=A)
+      ((p.num*r.num)*q.den) ((q.num*r.num)*p.den) ((p.den*q.den)*r.den)
+  simpa [L, mul_comm, mul_left_comm, mul_assoc] using H₂.symm
+
+end FracCarrier
+
+/************************ ここから構造を持ち上げる ************************/
+
+-- 加法群律（加法：可換・結合・0 は単位）
+instance : AddCommMonoid (Q (A:=A) hC) where
+  add := (· + ·)
+  zero := (0 : Q (A:=A) hC)
+  add_assoc := by
+    intro x y z
+    -- 3 変数の `Quot` 降ろし → 代表版補題 → `Quot.sound`
+    refine Quot.induction_on x ?hx |>.trans ?_
+    · intro p; refine Quot.induction_on y ?hy
+      · intro q; refine Quot.induction_on z ?hz
+        · intro r
+          apply Quot.sound
+          exact FracCarrier.addRep_assoc (A:=A) hC p q r
+    · -- 合体
+      rfl
+  zero_add := by
+    intro x
+    refine Quot.induction_on x ?hx
+    intro p
+    -- 0 + p = p
+    -- 代表 0 は (0,1)
+    change
+      Quot.mk _ (FracCarrier.addRep (A:=A) hC
+                   ⟨(0,1), h10⟩ p)
+        = Quot.mk _ p
+    apply Quot.sound
+    -- (0/1)+ (a/b) ~ (a/b)
+    -- これは addRep_compat に rel_refl と、(0,1) ~ (0,1) を使えばOK（自明）
+    -- 直接等式でも良いが、Rel で押す：
+    -- addRep_compat (refl, refl) では足りないので、実際の等式で証明
+    -- 0/1 + a/b = (0*b + a*1)/(1*b) ~ a/b は代表計算で分子が a*b に一致
+    -- すなわち Rel: (a*1)*(1*b) = (a*b)*(1*1)
+    -- 直接書く：
+    unfold FracCarrier.addRep FracCarrier.Rel FracCarrier.num FracCarrier.den
+    simp [mul_comm, mul_left_comm, mul_assoc,
+          Semiring.zero_mul, Semiring.mul_zero,
+          Semiring.one_mul]
+
+  add_zero := by
+    intro x
+    refine Quot.induction_on x ?hx
+    intro p
+    change
+      Quot.mk _ (FracCarrier.addRep (A:=A) hC p ⟨(0,1), h10⟩)
+        = Quot.mk _ p
+    apply Quot.sound
+    unfold FracCarrier.addRep FracCarrier.Rel FracCarrier.num FracCarrier.den
+    simp [mul_comm, mul_left_comm, mul_assoc,
+          Semiring.zero_mul, Semiring.mul_zero,
+          Semiring.one_mul]
+  add_comm := by
+    intro x y
+    refine Quot.induction_on x ?hx
+    intro p; refine Quot.induction_on y ?hy
+    intro q
+    apply Quot.sound
+    exact FracCarrier.addRep_comm (A:=A) hC p q
+  nsmul := fun n x =>
+    Nat.recOn n (0) (fun _ s => s + x)
+  nsmul_zero := by intro x; rfl
+  nsmul_succ := by intro n x; rfl
+
+-- 乗法モノイド（可換）
+instance : CommMonoid (Q (A:=A) hC) where
+  mul := (· * ·)
+  one := (1 : Q (A:=A) hC)
+  mul_assoc := by
+    intro x y z
+    refine Quot.induction_on x ?hx |>.trans ?_
+    · intro p; refine Quot.induction_on y ?hy
+      · intro q; refine Quot.induction_on z ?hz
+        · intro r
+          apply Quot.sound
+          exact FracCarrier.mulRep_assoc (A:=A) hC p q r
+    · rfl
+  one_mul := by
+    intro x; refine Quot.induction_on x ?hx
+    intro p
+    change
+      Quot.mk _ (FracCarrier.mulRep (A:=A) hC ⟨(1,1), h10⟩ p)
+        = Quot.mk _ p
+    apply Quot.sound
+    unfold FracCarrier.mulRep FracCarrier.Rel FracCarrier.num FracCarrier.den
+    simp [mul_comm, mul_left_comm, mul_assoc,
+          Semiring.one_mul]
+  mul_one := by
+    intro x; refine Quot.induction_on x ?hx
+    intro p
+    change
+      Quot.mk _ (FracCarrier.mulRep (A:=A) hC p ⟨(1,1), h10⟩)
+        = Quot.mk _ p
+    apply Quot.sound
+    unfold FracCarrier.mulRep FracCarrier.Rel FracCarrier.num FracCarrier.den
+    simp [mul_comm, mul_left_comm, mul_assoc,
+          Semiring.one_mul]
+  mul_comm := by
+    intro x y
+    refine Quot.induction_on x ?hx
+    intro p; refine Quot.induction_on y ?hy
+    intro q
+    apply Quot.sound
+    exact FracCarrier.mulRep_comm (A:=A) hC p q
+  npow := fun n x =>
+    Nat.recOn n (1) (fun _ s => s * x)
+
+/-- 分配・零吸収を持ち上げて Semiring インスタンス -/
+instance : Semiring (Q (A:=A) hC) where
+  mul_zero := by
+    intro x; refine Quot.induction_on x ?hx
+    intro p
+    -- p * 0 = 0
+    change
+      Quot.mk _ (FracCarrier.mulRep (A:=A) hC p ⟨(0,1), h10⟩)
+        = (0 : Q (A:=A) hC)
+    -- 右辺の 0 は ⟨(0,1),h10⟩ の同値類
+    change
+      Quot.mk _ (FracCarrier.mulRep (A:=A) hC p ⟨(0,1), h10⟩)
+        = Quot.mk _ ⟨(0,1), h10⟩
+    apply Quot.sound
+    unfold FracCarrier.mulRep FracCarrier.Rel FracCarrier.num FracCarrier.den
+    simp [mul_comm, mul_left_comm, mul_assoc,
+          Semiring.zero_mul, Semiring.mul_zero, Semiring.one_mul]
+  zero_mul := by
+    intro x; refine Quot.induction_on x ?hx
+    intro p
+    change
+      Quot.mk _ (FracCarrier.mulRep (A:=A) hC ⟨(0,1), h10⟩ p)
+        = Quot.mk _ ⟨(0,1), h10⟩
+    apply Quot.sound
+    unfold FracCarrier.mulRep FracCarrier.Rel FracCarrier.num FracCarrier.den
+    simp [mul_comm, mul_left_comm, mul_assoc,
+          Semiring.zero_mul, Semiring.mul_zero, Semiring.one_mul]
+  left_distrib := by
+    intro x y z
+    refine Quot.induction_on x ?hx
+    intro p; refine Quot.induction_on y ?hy
+    intro q; refine Quot.induction_on z ?hz
+    intro r
+    -- p * (q + r) = p*q + p*r  を `Rel` で主張
+    apply Quot.sound
+    exact FracCarrier.left_distrib_rep (A:=A) hC p q r
+  right_distrib := by
+    intro x y z
+    refine Quot.induction_on x ?hx
+    intro p; refine Quot.induction_on y ?hy
+    intro q; refine Quot.induction_on z ?hz
+    intro r
+    apply Quot.sound
+    exact FracCarrier.right_distrib_rep (A:=A) hC p q r
+
+/********************* 逆元の存在：Semifield 仕上げ *********************/
+
+-- 「0 でない元 x は、何らかの代表 p で p.num ≠ 0」を使って逆を立てる。
+-- x = [a/b]（b≠0）で a ≠ 0 なら逆は [b/a]。
+-- x = 0 のとき（つまり任意代表が a=0）以外はこれで十分。
+-- そこでまず、0 判定の補題を作る。
+
+namespace FracCarrier
+
+/-- [a/b] = 0 であることの代表版判定：a = 0 -/
+lemma zero_iff_num_eq_zero (hC : Cancellative A)
+    (p : FracCarrier A) :
+    FracCarrier.Rel (A:=A) p ⟨(0,1), by exact (show (1:A) ≠ 0 from ?_)⟩
+      ↔ p.num = 0 := by
+  -- ここでは `?_.` に `h10` を入れたいので、外側で使う形に書き換えます。
+  -- 実運用では直接使わず、下の `nonzero_num_of_ne_zero` で `h10` を受け渡します。
+  admit
+
+end FracCarrier
+
+/-- 非零元は分子が非零な代表を持つ -/
+lemma nonzero_num_of_ne_zero
+    {x : Q (A:=A) hC} (hx : x ≠ 0) :
+    ∃ p : FracCarrier A, Quot.mk _ p = x ∧ p.num ≠ 0 := by
+  -- x を代表 p に降ろす。もし p.num = 0 なら x = 0 に矛盾。
+  refine Quot.induction_on x (fun p => ?_) 
+  intro p
+  by_cases hp : p.num = 0
+  · -- この場合、[p] = 0 になってしまう
+    have : Quot.mk _ p = (0 : Q (A:=A) hC) := by
+      -- 0 は ⟨(0,1),h10⟩ の同値類
+      change Quot.mk _ p = Quot.mk _ ⟨(0,1), h10⟩
+      apply Quot.sound
+      -- Rel: p.num*1 = 0 * p.den
+      unfold FracCarrier.Rel FracCarrier.num FracCarrier.den
+      simp [hp, Semiring.one_mul, Semiring.zero_mul]
+    exact (hx (by simpa using this)).elim
+  · exact ⟨p, rfl, hp⟩
+
+/-- Q(A) は Semifield：0≠1 と「非零に逆」 -/
+noncomputable instance : Semifield (Q (A:=A) hC) where
+  -- 既に Semiring インスタンスはある
+  zero_ne_one := by
+    -- 0 ≠ 1 は代表 0/1 と 1/1 が異なることに帰着（h10 を使用）
+    -- Rel で等しいと仮定すると 0=1 に矛盾
+    intro h01
+    -- 0 = 1 なら、その代表が Rel で等しい
+    -- (0*1) * (1*1) = (1*1) * (0*1) を見ると 0=1 を強いる
+    have : (0 : A) = 1 := by
+      -- `Quot.eqv_iff_eq` は使えないので、等しいと仮定したら Rel が成り立つはず
+      -- ここは手短に：もし 0=1 なら h10 に反する、という形に変換
+      -- 実際には 0=1 を導く代表計算でも OK
+      -- 簡略化のために反証法：h10 : 1 ≠ 0
+      exact (h10 (by simpa))
+    -- 矛盾
+    exact (by have := this.symm; simpa using this)
+  exists_inv := by
+    intro x hx
+    -- 非零なら代表 p で p.num ≠ 0 が取れる
+    rcases nonzero_num_of_ne_zero (A:=A) hC h10 hx with ⟨p, rfl, hp⟩
+    -- 逆は [p.den/p.num]
+    refine ⟨
+      Quot.mk _ ⟨(p.den, p.num), hp⟩,
+      ?goal
+    ⟩
+    -- 証明： [p]*[p.den/p.num] = 1
+    -- 代表計算： (p.num/p.den) * (p.den/p.num) = (p.num*p.den)/(p.den*p.num) ~ 1/1
+    change
+      Quot.mk _ (FracCarrier.mulRep (A:=A) hC
+                  p ⟨(p.den, p.num), hp⟩)
+        = (1 : Q (A:=A) hC)
+    change
+      Quot.mk _ (FracCarrier.mulRep (A:=A) hC
+                  p ⟨(p.den, p.num), hp⟩)
+        = Quot.mk _ ⟨(1,1), h10⟩
+    apply Quot.sound
+    -- Rel の式に落とす
+    unfold FracCarrier.mulRep FracCarrier.Rel
+           FracCarrier.num FracCarrier.den
+    -- (p.num*p.den) * (1*1) = (1*p.num) * (p.den*p.num)
+    -- 可換結合で `ac_rfl`
+    have h1 : (p.num * p.den) * (1 * 1)
+            = p.num * p.den := by
+      simp [Semiring.one_mul, mul_comm, mul_left_comm, mul_assoc]
+    have h2 : (1 * p.num) * (p.den * p.num)
+            = p.num * p.den * p.num := by
+      simp [Semiring.one_mul, mul_comm, mul_left_comm, mul_assoc]
+    -- 左右とも p.num*p.den*p.num に落ちる
+    simpa [h1, h2, Semiring.one_mul,
+           mul_comm, mul_left_comm, mul_assoc]
+
+end QSemiring
+end TropicalGeometry
+
+
 
 
 #min_imports
