@@ -162,7 +162,7 @@ def comp (g : SemiringHomomorphism S2 S3) (f : SemiringHomomorphism S1 S2) :
 
 
 end SemiringHomomorphism
-10/9
+--10/9
 --S₁代数の定義
 class Algebra (A : Type u) (B : Type v)
   [Semiring A] [Semiring B] : Type (max u v) where
@@ -267,7 +267,7 @@ noncomputable def psi (H : AlgebraRel A X Y) : SemiringHomomorphism X Y :=
   Classical.choose H
 --defはHから具体的な写像Ψを取り出す操作を行うための定義。選択公理に依存しているのでnoncomputableで定義する。使う際はOpen classicalにすればよい。
 
---取り出したΨが図式を可換にする。 
+--psiHで取り出したΨが図式を可換にする。 
 @[simp] theorem comm (H : AlgebraRel A X Y) :
     SemiringHomomorphism.comp (psi (A:=A) (X:=X) (Y:=Y) H)
       (Algebra.algebraMap (A:=X) (B:=A))
@@ -279,7 +279,7 @@ noncomputable def psi (H : AlgebraRel A X Y) : SemiringHomomorphism X Y :=
     (psi (A:=A) (X:=X) (Y:=Y) H)
       (Algebra.algebraMap (A:=X) (B:=A) a)
   = (Algebra.algebraMap (A:=Y) (B:=A) a) := by
-  -- commを取り出してcongrArgを適用するだけ
+  -- commで可換図式の関数の等式を取り出してcongrArgでaを適用するだけ
   have hc := comm (A:=A) (X:=X) (Y:=Y) H
   exact congrArg (fun (φ : SemiringHomomorphism A Y) => φ a) hc
 
@@ -295,6 +295,7 @@ structure AlgIso (A : Type u) (X : Type v) (Y : Type w)
   left_inv  :
     SemiringHomomorphism.comp invHom.toHom toHom.toHom
       = SemiringHomomorphism.id X
+      --invHom.toHomとtoHom.toHomの合成で恒等写像を作り出す。invHomでAlgIsoからAlgHomを取り出し、toHomでAlgHomからSemiringhomomorphismを取り出す流れ。（AlgHomにも定義があるのでこれは入れ子構造）
   right_inv :
     SemiringHomomorphism.comp toHom.toHom invHom.toHom
       = SemiringHomomorphism.id Y
@@ -331,6 +332,7 @@ def symm (e : AlgIso A X Y) : AlgIso A Y X where
 
 end AlgIso
 
+--10/17
 --𝔹の導入
 instance : Semiring 𝔹 where
   mul_zero := by intro a; cases a <;> rfl
