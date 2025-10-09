@@ -162,7 +162,7 @@ def comp (g : SemiringHomomorphism S2 S3) (f : SemiringHomomorphism S1 S2) :
 
 
 end SemiringHomomorphism
-
+10/9
 --S₁代数の定義
 class Algebra (A : Type u) (B : Type v)
   [Semiring A] [Semiring B] : Type (max u v) where
@@ -215,7 +215,7 @@ structure AlgHom (A : Type u) (X : Type v) (Y : Type w)
     SemiringHomomorphism.comp toHom
       (Algebra.algebraMap (A:=X) (B:=A))  -- f : A → X
     = (Algebra.algebraMap (A:=Y) (B:=A))  -- g : A → Y
-
+    --合成を示している(fとtoHomの合成がgと等しくなる。)
 namespace AlgHom
 
 variable {A : Type u} {X : Type v} {Y : Type w}
@@ -224,10 +224,11 @@ variable [Algebra X A] [Algebra Y A]
 
 /-- 可換図式--/
 @[simp] lemma comm_apply (h : AlgHom A X Y) (a : A) :
-    h.toHom (Algebra.algebraMap (A:=X) (B:=A) a)
+    h.toHom (Algebra.algebraMap (A:=X) (B:=A) a)  --A→X(algebraMap)→Y(h.toHom)という写像の合成にaを適用
       = (Algebra.algebraMap (A:=Y) (B:=A) a) := by
   -- h.comm : comp h.toHom f = g に a を適用
   exact congrArg (fun (φ : SemiringHomomorphism A Y) => φ a) h.comm
+  --congrArgは両辺に同じ関数を適用するときに使うコマンド。今回は「aを適用する」ということ自体が関数になっていて、それをh.comm(上のAlgHomの中にあるcomm)
 
 end AlgHom
 
@@ -243,6 +244,7 @@ def AlgebraRel (A : Type u) (X : Type v) (Y : Type w)
 
 scoped[TGAlgRel] notation "AlgRel " A:arg X:arg Y:arg =>
   TropicalGeometry.AlgebraRel A X Y
+  --名前の衝突を防ぐためにscopedをつけておく。今後はopen　scoped TGAlgRelと書くとTropicalGeometry.AlgebraRel A X Y を省略できるようになる。(別ファイルからの参照)も可能
 
 namespace AlgebraRel
 
@@ -250,7 +252,7 @@ variable {A : Type u} {X : Type v} {Y : Type w}
 variable [Semiring A] [Semiring X] [Semiring Y]
 variable [Algebra X A] [Algebra Y A]
 
---具体的な Ψ と可換性
+--具体的な Ψ と可換性(Ψ があって、可換性も証明できたならAlgebraRel A X Yは存在しますよね」という補題)
 theorem intro
   (Ψ : SemiringHomomorphism X Y)
   (h : SemiringHomomorphism.comp Ψ
@@ -258,10 +260,12 @@ theorem intro
        = (Algebra.algebraMap (A:=Y) (B:=A))) :
   AlgebraRel A X Y :=
   ⟨Ψ, h⟩
+  --∃ Ψ, P Ψという形の命題。よって、⟨ ⟩で具体的な写像と仮定をペアで羅列することで存在の証明は完了する。
 
 --ひとつΨを取り出す。 
 noncomputable def psi (H : AlgebraRel A X Y) : SemiringHomomorphism X Y :=
   Classical.choose H
+--defはHから具体的な写像Ψを取り出す操作を行うための定義。選択公理に依存しているのでnoncomputableで定義する。使う際はOpen classicalにすればよい。
 
 --取り出したΨが図式を可換にする。 
 @[simp] theorem comm (H : AlgebraRel A X Y) :
