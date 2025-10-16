@@ -341,6 +341,7 @@ instance : Semiring 𝔹 where
     intro a b c; cases a <;> cases b <;> cases c <;> rfl
   right_distrib := by
     intro a b c; cases a <;> cases b <;> cases c <;> rfl
+    --<;>で直後のタクティクを全てのゴールに適用できる。
 
 --1 + 1 = 1
 @[simp] lemma B_one_add_one : ((1 : 𝔹) + (1 : 𝔹)) = (1 : 𝔹) := rfl
@@ -348,32 +349,40 @@ instance : Semiring 𝔹 where
 --Aが加法冪等のとき，𝔹 → Aで半環準同型となる
 def boolHomOfAddIdem (A : Type u) [Semiring A]
     (h : AddIdempotent A) : SemiringHomomorphism 𝔹 A :=
-{ toFun := fun x =>
+{ --どの関数を対象にするかを指定する。-∞を0に対応させ、0を-1に対応させる。
+  toFun := fun x =>
     match x with
     | 𝔹.negInf => 0
     | 𝔹.zero   => 1,
+
+  --F(x + y) = F x + F yを示す。x,yの組み合わせには4通りあるので、以下の4つを
   map_add := by
     intro x y
+    --x,yで総当たりを行う。
     cases x <;> cases y
-    · -- (⊥, ⊥)：0 = 0 + 0
+    · -- F(-∞ + -∞)：0 = 0 + 0
       exact (zero_add (0 : A)).symm
-    · -- (⊥, 0)：1 = 0 + 1
+    · -- F(-∞ + 0)：1 = 0 + 1
       exact (zero_add (1 : A)).symm
-    · -- (0, ⊥)：1 = 1 + 0
+    · -- F(0 + -∞)：1 = 1 + 0
       exact (add_zero (1 : A)).symm
-    · -- (0, 0)：1 = 1 + 1（冪等性）
+    · -- F(0 + 0)：1 = 1 + 1（冪等性）
       exact (h (1 : A)).symm,
+
+  --F(xy) = F(X)F(y)を示す。
   map_mul := by
     intro x y
     cases x <;> cases y
-    · -- (⊥, ⊥)：0 = 0 * 0
+    · -- F(-∞ + -∞)：0 = 0 * 0
       exact (Semiring.zero_mul (R:=A) (0 : A)).symm
-    · -- (⊥, 0)：0 = 0 * 1
+    · -- F(-∞ + 0)：0 = 0 * 1
       exact (Semiring.zero_mul (R:=A) (1 : A)).symm
-    · -- (0, ⊥)：0 = 1 * 0
+    · -- F(0 + -∞)：0 = 1 * 0
       exact (Semiring.mul_zero (R:=A) (1 : A)).symm
-    · -- (0, 0)：1 = 1 * 1
+    · -- F(0 + 0)：1 = 1 * 1
       exact (one_mul (1 : A)).symm,
+
+  --𝔹 では 0 : 𝔹 = 𝔹.negInf、 1 : 𝔹 = 𝔹.zero が既にインスタンスで入っている.
   map_zero := rfl,
   map_one  := rfl }
 
@@ -385,23 +394,27 @@ theorem addIdempotent_iff_nonempty_boolAlgebra
   constructor
   · -- (→) 加法冪等 ⇒ 𝔹-代数が存在
     intro h
+    --Algebra.ofHomは準同型写像から𝔹同型の構造を作ってくれる。準同型写像はboolHomOfAddIdemで指定してあげる。
     exact ⟨Algebra.ofHom (boolHomOfAddIdem A h)⟩
+
   · -- (←) 𝔹-代数が存在 ⇒ 加法冪等
     intro hAlg
+    --nonemptyの状態に具体的にどのようなものがあるかを与えている。Tactic stateのinstで指定されているSemiringを用いて具体的に一つ抽出する。
     rcases hAlg with ⟨inst⟩
-    -- ψ : 𝔹 → A
+    -- ψ : 𝔹 → Aを指定してあげる。Algebraのclassを参照すると.homがあるので、instを指定して写像を取り出す。
     let ψ : SemiringHomomorphism 𝔹 A := inst.hom
-    -- 1_A = 1_A + 1_A
+    -- 1_A = 1_A + 1_Aを作る。
     have h11A : (1 : A) = (1 : A) + (1 : A) := by
       have h0 := ψ.map_add (1 : 𝔹) (1 : 𝔹)      -- ψ(1+1) = ψ1 + ψ1
       have h1 : ψ 1 = ψ 1 + ψ 1 := by
+        --B_one_add_oneで1+1=1なので、Ψ(1+1)=Ψ(1)が言える。h0も合わせることで証明が完了する。
         simpa [B_one_add_one] using h0
       simpa [ψ.map_one] using h1
     -- 任意の a について a + a = a
     intro a
-    -- まず a*1 = a*1 + a*1 を作る（左分配と h11A）
+    -- a*1 = a*1 + a*1 を作る（左分配と h11A）
     have hmul : a * 1 = a * 1 + a * 1 := by
-      -- a*(1+1) = a*1 + a*1 に対して，(1+1) → 1 へ書き換える
+      --Semiring.left_distribで a*(1+1) = a*1 + a*1 に対して，(1+1) → 1 へ書き換えh11Aを両辺入れ替えて適用。
      simpa [← h11A] using (Semiring.left_distrib (R:=A) a 1 1)
 
     -- あとは mul_one で仕上げ
@@ -832,8 +845,8 @@ def Q.one  : Q (A:=A) hC := Q.mk (A:=A) hC 1 1 h10
 
 instance : Zero (Q (A:=A) hC) := ⟨Q.zero (A:=A) hC h10⟩
 instance : One  (Q (A:=A) hC) := ⟨Q.one  (A:=A) hC h10⟩
-instance : Add  (Q (A:=A) hC) := ⟨Q.add (A:=A) hC⟩
-instance : Mul  (Q (A:=A) hC) := ⟨Q.mul (A:=A) hC⟩
+noncomputable instance : Add  (Q (A:=A) hC) := ⟨Q.add (A:=A) hC⟩
+noncomputable instance : Mul  (Q (A:=A) hC) := ⟨Q.mul (A:=A) hC⟩
 
 namespace FracCarrier
 
@@ -864,52 +877,100 @@ lemma addRep_assoc (hC : Cancellative A)
     Rel (A:=A)
       (addRep (A:=A) hC (addRep (A:=A) hC p q) r)
       (addRep (A:=A) hC p (addRep (A:=A) hC q r)) := by
-  -- どちら側も分母は p.den*q.den*r.den の順序違い。分子は分配で一致。
-  -- ひたすら分配＋可換結合で並べ替え。
+  -- 定義を展開
   unfold Rel addRep
-  -- 省略せず正攻法： ( (p.num*q.den + q.num*p.den)*r.den + r.num*(p.den*q.den) ) * ( (p.den*q.den)*r.den )
-  -- と ( p.num*(q.den*r.den) + (q.num*r.den + r.num*q.den)*p.den ) * ( p.den*(q.den*r.den) )
-  -- を ac と分配を駆使して一致させる。
-  -- 計算は長いが、`right_distrib` を2回ずつ当てて各項を同型に並べ替えればよい。
-  -- 書き換え用の補助：
-  have Dpq : p.den * q.den = q.den * p.den := by ac_rfl
-  have Drp : r.den * p.den = p.den * r.den := by ac_rfl
-  have Dqr : q.den * r.den = r.den * q.den := by ac_rfl
-  -- 展開して合わせる（`calc`＋`simp` で押し切る）
-  -- （詳細展開は機械的。以下は一括で片付けるための `simp` ブロック）
-  -- Lean の可換結合補題群（`mul_comm`, `mul_left_comm`, `mul_assoc`）と
-  -- 右分配 `right_distrib` を適宜 `simpa` で使います。
-  -- まず左辺を 3 項の和の和に展開
-  have L :
-    (p.num*q.den + q.num*p.den) * r.den
-      + r.num * (p.den*q.den)
-    = p.num*q.den*r.den + q.num*p.den*r.den + r.num*p.den*q.den := by
-    -- 2回の分配＋結合可換で整形
-    have := Semiring.right_distrib (R:=A)
-                (p.num*q.den) (q.num*p.den) r.den
-    -- (x+y)*z = x*z + y*z
-    -- さらに各項に結合を適用
-    -- 仕上げ：
-    simpa [mul_comm, mul_left_comm, mul_assoc] using
-      congrArg (fun t => t + r.num * (p.den*q.den)) this
-  have R :
-    p.num*(q.den*r.den)
-      + (q.num*r.den + r.num*q.den)*p.den
-    = p.num*q.den*r.den + q.num*r.den*p.den + r.num*q.den*p.den := by
-    have := Semiring.right_distrib (R:=A)
-                (q.num*r.den) (r.num*q.den) p.den
-    -- こちらも同様に整形
-    simpa [mul_comm, mul_left_comm, mul_assoc] using
-      congrArg (fun t => p.num*(q.den*r.den) + t) this
-  -- すると両辺は可換結合で一致
-  -- （q.den*p.den と p.den*q.den の入れ替えなど）
-  have : (p.num*q.den*r.den + q.num*p.den*r.den + r.num*p.den*q.den)
-       = (p.num*q.den*r.den + q.num*r.den*p.den + r.num*q.den*p.den) := by
-    -- 第2・第3項の順序を合わせるだけ
-    simp [mul_comm, mul_left_comm, mul_assoc]
-  -- 以上を分母の並べ替えと合わせれば OK
-  -- 今回は等式を “分子同士を一致させた” 形で示したので、そのまま `simp` で終える
-  simpa [L, R, mul_comm, mul_left_comm, mul_assoc]
+  -- 記号を短くする
+  set a := p.num; set b := p.den
+  set c := q.num; set d := q.den
+  set e := r.num; set f := r.den
+  -- 以降の分配で使う略記
+  let k₁ := b * (d * f)
+  let k₂ := (b * d) * f
+
+  -- 左辺を 3 項に分解
+  have HL₀ :
+      ((a*d + c*b) * f + e * (b*d)) * k₁
+        = ((a*d + c*b) * f) * k₁ + (e * (b*d)) * k₁ := by
+    simpa using
+      (Semiring.right_distrib (R:=A) ((a*d)*f) ((c*b)*f) k₁
+        |>.trans
+        (by
+          -- ここで (a*d + c*b)*f をいったん (a*d)*f + (c*b)*f に差し替える
+          have H := Semiring.right_distrib (R:=A) (a*d) (c*b) f
+          -- ((a*d + c*b)*f) * k₁ = (((a*d)*f) + ((c*b)*f)) * k₁
+          have := congrArg (fun t => t * k₁) H
+          -- さらに (x + y) * k₁ を右分配
+          have := congrArg (fun t => t + (e*(b*d)) * k₁) this
+          -- 最後に (x+y)*k₁ の分配を適用した形に整える
+          exact this
+        ))
+
+  -- ただし直上は “二重分配” をまとめて書いてしまうと読みづらいので、素直に分けて書く方が安定
+  -- 書き直し：左辺を段階的に 3 項に
+  clear HL₀
+  have HL1 :
+      ((a*d + c*b) * f + e * (b*d)) * k₁
+        = ((a*d + c*b) * f) * k₁ + (e * (b*d)) * k₁ := by
+    simpa using
+      (Semiring.right_distrib (R:=A) ((a*d + c*b) * f) (e * (b*d)) k₁)
+  have HL2 :
+      ((a*d + c*b) * f) * k₁
+        = ((a*d) * f) * k₁ + ((c*b) * f) * k₁ := by
+    have H := Semiring.right_distrib (R:=A) (a*d) (c*b) f
+    -- (a*d + c*b)*f = (a*d)*f + (c*b)*f に k₁ を右から掛ける
+    simpa using congrArg (fun t => t * k₁) H
+  have HL :
+      ((a*d + c*b) * f + e * (b*d)) * k₁
+        = ((a*d) * f) * k₁ + ((c*b) * f) * k₁ + (e * (b*d)) * k₁ := by
+    calc
+      ((a*d + c*b) * f + e * (b*d)) * k₁
+          = ((a*d + c*b) * f) * k₁ + (e * (b*d)) * k₁ := HL1
+      _ = (((a*d) * f) * k₁ + ((c*b) * f) * k₁) + (e * (b*d)) * k₁ := by
+            simpa using (by
+              have := Semiring.right_distrib (R:=A) ((a*d) * f) ((c*b) * f) k₁
+              exact this)
+      _ = ((a*d) * f) * k₁ + ((c*b) * f) * k₁ + (e * (b*d)) * k₁ := by
+            ac_rfl
+
+  -- 右辺を 3 項に分解
+  have HR1 :
+      (a * (d*f) + (c*f + e*d) * b) * k₂
+        = (a * (d*f)) * k₂ + ((c*f + e*d) * b) * k₂ := by
+    simpa using
+      (Semiring.right_distrib (R:=A) (a * (d*f)) ((c*f + e*d) * b) k₂)
+  have HR2 :
+      (c*f + e*d) * b
+        = (c*f) * b + (e*d) * b := by
+    simpa using
+      (Semiring.right_distrib (R:=A) (c*f) (e*d) b)
+  have HR :
+      (a * (d*f) + (c*f + e*d) * b) * k₂
+        = (a * (d*f)) * k₂ + ((c*f) * b) * k₂ + ((e*d) * b) * k₂ := by
+    calc
+      (a * (d*f) + (c*f + e*d) * b) * k₂
+          = (a * (d*f)) * k₂ + ((c*f + e*d) * b) * k₂ := HR1
+      _ = (a * (d*f)) * k₂ + (((c*f) * b + (e*d) * b) * k₂) := by
+            simpa [HR2]
+      _ = (a * (d*f)) * k₂ + ((c*f) * b) * k₂ + ((e*d) * b) * k₂ := by
+            simpa using
+              (Semiring.right_distrib (R:=A) ((c*f) * b) ((e*d) * b) k₂)
+
+  -- 仕上げ：両辺とも 3 項の和に展開済みなので，可換・結合と結合法で一致
+  -- k₁ = b*(d*f) と k₂ = (b*d)*f は結合法で同じ（ac_rfl が吸収）
+  have : ((a*d) * f) * k₁ + ((c*b) * f) * k₁ + (e * (b*d)) * k₁
+       = (a * (d*f)) * k₂ + ((c*f) * b) * k₂ + ((e*d) * b) * k₂ := by
+    -- すべてを “積のフラットな積” に並べ替えるだけ
+    -- 例：((a*d)*f)*k₁  ≃  a*d*f*b*d*f  と  (a*(d*f))*k₂ ≃ a*d*f*b*d*f
+    -- 他の2項も同様に一致する
+    ac_rfl
+  -- 以上を HL, HR で両辺に戻す
+  calc
+    ((a*d + c*b) * f + e * (b*d)) * k₁
+        = ((a*d) * f) * k₁ + ((c*b) * f) * k₁ + (e * (b*d)) * k₁ := HL
+    _ = (a * (d*f)) * k₂ + ((c*f) * b) * k₂ + ((e*d) * b) * k₂ := this
+    _ = (a * (d*f) + (c*f + e*d) * b) * k₂ := HR.symm
+
+
 
 /-- 乗法の可換性（代表版） -/
 lemma mulRep_comm (hC : Cancellative A)
