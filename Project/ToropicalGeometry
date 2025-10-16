@@ -476,6 +476,7 @@ theorem mul_left_mono_leA {a b c : A}
 end OrderFromAddIdem
 end TropicalGeometry
 
+--10/24
 universe u
 
 namespace TropicalGeometry
@@ -877,98 +878,87 @@ lemma addRep_assoc (hC : Cancellative A)
     Rel (A:=A)
       (addRep (A:=A) hC (addRep (A:=A) hC p q) r)
       (addRep (A:=A) hC p (addRep (A:=A) hC q r)) := by
-  -- 定義を展開
   unfold Rel addRep
-  -- 記号を短くする
   set a := p.num; set b := p.den
   set c := q.num; set d := q.den
   set e := r.num; set f := r.den
-  -- 以降の分配で使う略記
   let k₁ := b * (d * f)
   let k₂ := (b * d) * f
 
-  -- 左辺を 3 項に分解
-  have HL₀ :
-      ((a*d + c*b) * f + e * (b*d)) * k₁
-        = ((a*d + c*b) * f) * k₁ + (e * (b*d)) * k₁ := by
-    simpa using
-      (Semiring.right_distrib (R:=A) ((a*d)*f) ((c*b)*f) k₁
-        |>.trans
-        (by
-          -- ここで (a*d + c*b)*f をいったん (a*d)*f + (c*b)*f に差し替える
-          have H := Semiring.right_distrib (R:=A) (a*d) (c*b) f
-          -- ((a*d + c*b)*f) * k₁ = (((a*d)*f) + ((c*b)*f)) * k₁
-          have := congrArg (fun t => t * k₁) H
-          -- さらに (x + y) * k₁ を右分配
-          have := congrArg (fun t => t + (e*(b*d)) * k₁) this
-          -- 最後に (x+y)*k₁ の分配を適用した形に整える
-          exact this
-        ))
-
-  -- ただし直上は “二重分配” をまとめて書いてしまうと読みづらいので、素直に分けて書く方が安定
-  -- 書き直し：左辺を段階的に 3 項に
-  clear HL₀
+  /- 左辺を 3 項に -/
   have HL1 :
       ((a*d + c*b) * f + e * (b*d)) * k₁
         = ((a*d + c*b) * f) * k₁ + (e * (b*d)) * k₁ := by
     simpa using
       (Semiring.right_distrib (R:=A) ((a*d + c*b) * f) (e * (b*d)) k₁)
+
+  -- ((a*d + c*b) * f) * k₁ = (a*d)*(f*k₁) + (c*b)*(f*k₁)
   have HL2 :
       ((a*d + c*b) * f) * k₁
-        = ((a*d) * f) * k₁ + ((c*b) * f) * k₁ := by
-    have H := Semiring.right_distrib (R:=A) (a*d) (c*b) f
-    -- (a*d + c*b)*f = (a*d)*f + (c*b)*f に k₁ を右から掛ける
-    simpa using congrArg (fun t => t * k₁) H
+        = (a*d) * (f * k₁) + (c*b) * (f * k₁) := by
+    -- ((x+y)*f)*k₁ = (x+y)*(f*k₁) にしてから right_distrib
+    have := Semiring.right_distrib (R:=A) (a*d) (c*b) (f * k₁)
+    simpa [mul_assoc] using this
+
+  -- 左辺まとめ
   have HL :
       ((a*d + c*b) * f + e * (b*d)) * k₁
-        = ((a*d) * f) * k₁ + ((c*b) * f) * k₁ + (e * (b*d)) * k₁ := by
+        = a*d*f*k₁ + c*b*f*k₁ + e*(b*d)*k₁ := by
     calc
       ((a*d + c*b) * f + e * (b*d)) * k₁
           = ((a*d + c*b) * f) * k₁ + (e * (b*d)) * k₁ := HL1
-      _ = (((a*d) * f) * k₁ + ((c*b) * f) * k₁) + (e * (b*d)) * k₁ := by
-            simpa using (by
-              have := Semiring.right_distrib (R:=A) ((a*d) * f) ((c*b) * f) k₁
-              exact this)
-      _ = ((a*d) * f) * k₁ + ((c*b) * f) * k₁ + (e * (b*d)) * k₁ := by
-            ac_rfl
+      _ = ((a*d) * (f * k₁) + (c*b) * (f * k₁)) + (e * (b*d)) * k₁ := by
+            simp [HL2]
+      _ = a*d*f*k₁ + c*b*f*k₁ + e*(b*d)*k₁ := by
+            simp [mul_assoc]
 
-  -- 右辺を 3 項に分解
+  /- 右辺を 3 項に -/
   have HR1 :
       (a * (d*f) + (c*f + e*d) * b) * k₂
         = (a * (d*f)) * k₂ + ((c*f + e*d) * b) * k₂ := by
     simpa using
       (Semiring.right_distrib (R:=A) (a * (d*f)) ((c*f + e*d) * b) k₂)
-  have HR2 :
-      (c*f + e*d) * b
-        = (c*f) * b + (e*d) * b := by
-    simpa using
-      (Semiring.right_distrib (R:=A) (c*f) (e*d) b)
+
+  -- ((c*f + e*d) * b) * k₂ = (c*f)*(b*k₂) + (e*d)*(b*k₂)
+  have HR2' :
+      ((c*f + e*d) * b) * k₂
+        = (c*f) * (b * k₂) + (e*d) * (b * k₂) := by
+    have := Semiring.right_distrib (R:=A) (c*f) (e*d) (b * k₂)
+    simpa [mul_assoc] using this
+
   have HR :
       (a * (d*f) + (c*f + e*d) * b) * k₂
-        = (a * (d*f)) * k₂ + ((c*f) * b) * k₂ + ((e*d) * b) * k₂ := by
+        = a * (d*f) * k₂ + (c*f) * b * k₂ + (e*d) * b * k₂ := by
     calc
       (a * (d*f) + (c*f + e*d) * b) * k₂
           = (a * (d*f)) * k₂ + ((c*f + e*d) * b) * k₂ := HR1
-      _ = (a * (d*f)) * k₂ + (((c*f) * b + (e*d) * b) * k₂) := by
-            simpa [HR2]
-      _ = (a * (d*f)) * k₂ + ((c*f) * b) * k₂ + ((e*d) * b) * k₂ := by
-            simpa using
-              (Semiring.right_distrib (R:=A) ((c*f) * b) ((e*d) * b) k₂)
+      _ = (a * (d*f)) * k₂ + ((c*f) * (b * k₂) + (e*d) * (b * k₂)) := by
+            simp [HR2']
+      _ = a * (d*f) * k₂ + (c*f) * b * k₂ + (e*d) * b * k₂ := by
+            simp [mul_assoc]
 
-  -- 仕上げ：両辺とも 3 項の和に展開済みなので，可換・結合と結合法で一致
-  -- k₁ = b*(d*f) と k₂ = (b*d)*f は結合法で同じ（ac_rfl が吸収）
-  have : ((a*d) * f) * k₁ + ((c*b) * f) * k₁ + (e * (b*d)) * k₁
-       = (a * (d*f)) * k₂ + ((c*f) * b) * k₂ + ((e*d) * b) * k₂ := by
-    -- すべてを “積のフラットな積” に並べ替えるだけ
-    -- 例：((a*d)*f)*k₁  ≃  a*d*f*b*d*f  と  (a*(d*f))*k₂ ≃ a*d*f*b*d*f
-    -- 他の2項も同様に一致する
+  -- k₁ と k₂ は結合法で同じ
+  have k_same : k₁ = k₂ := by
     ac_rfl
-  -- 以上を HL, HR で両辺に戻す
+
+  -- 3項の和の並び替え（括弧外しを含む）
+  have align :
+      a*d*f*k₁ + c*b*f*k₁ + e*(b*d)*k₁
+        = a*(d*f)*k₂ + (c*f)*b*k₂ + (e*d)*b*k₂ := by
+    -- まず k₁ を k₂ に置換してから ac で並べ替え
+    simpa [k_same, mul_assoc, mul_comm, mul_left_comm] using
+      (by
+         have : a*d*f*k₂ + c*b*f*k₂ + e*(b*d)*k₂
+              = a*(d*f)*k₂ + (c*f)*b*k₂ + (e*d)*b*k₂ := by ac_rfl
+         exact this)
+
+  -- まとめ
   calc
     ((a*d + c*b) * f + e * (b*d)) * k₁
-        = ((a*d) * f) * k₁ + ((c*b) * f) * k₁ + (e * (b*d)) * k₁ := HL
-    _ = (a * (d*f)) * k₂ + ((c*f) * b) * k₂ + ((e*d) * b) * k₂ := this
-    _ = (a * (d*f) + (c*f + e*d) * b) * k₂ := HR.symm
+        = a*d*f*k₁ + c*b*f*k₁ + e*(b*d)*k₁ := HL
+    _   = a*(d*f)*k₂ + (c*f)*b*k₂ + (e*d)*b*k₂ := align
+    _   = (a * (d*f) + (c*f + e*d) * b) * k₂ := HR.symm
+
 
 
 
