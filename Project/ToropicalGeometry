@@ -335,13 +335,17 @@ end AlgIso
 --10/17
 --𝔹の導入
 instance : Semiring 𝔹 where
-  mul_zero := by intro a; cases a <;> rfl
+  mul_zero := by intro a ; cases a <;> rfl
   zero_mul := by intro a; cases a <;> rfl
+  --<;>で直後のタクティクを全てのゴールに適用できる。
   left_distrib := by
     intro a b c; cases a <;> cases b <;> cases c <;> rfl
   right_distrib := by
     intro a b c; cases a <;> cases b <;> cases c <;> rfl
-    --<;>で直後のタクティクを全てのゴールに適用できる。
+
+
+--#check tauto
+
 
 --1 + 1 = 1
 @[simp] lemma B_one_add_one : ((1 : 𝔹) + (1 : 𝔹)) = (1 : 𝔹) := rfl
@@ -359,27 +363,27 @@ def boolHomOfAddIdem (A : Type u) [Semiring A]
   map_add := by
     intro x y
     --x,yで総当たりを行う。
-    cases x <;> cases y
-    · -- F(-∞ + -∞)：0 = 0 + 0
+    cases x <;> cases y <;> simp
+    /-· -- F(-∞ + -∞)：0 = 0 + 0
       exact (zero_add (0 : A)).symm
     · -- F(-∞ + 0)：1 = 0 + 1
       exact (zero_add (1 : A)).symm
     · -- F(0 + -∞)：1 = 1 + 0
-      exact (add_zero (1 : A)).symm
+      exact (add_zero (1 : A)).symm-/
     · -- F(0 + 0)：1 = 1 + 1（冪等性）
       exact (h (1 : A)).symm,
 
   --F(xy) = F(X)F(y)を示す。
   map_mul := by
     intro x y
-    cases x <;> cases y
-    · -- F(-∞ + -∞)：0 = 0 * 0
+    cases x <;> cases y 
+    · -- F(-∞ * -∞)：0 = 0 * 0
       exact (Semiring.zero_mul (R:=A) (0 : A)).symm
-    · -- F(-∞ + 0)：0 = 0 * 1
+    · -- F(-∞ * 0)：0 = 0 * 1
       exact (Semiring.zero_mul (R:=A) (1 : A)).symm
-    · -- F(0 + -∞)：0 = 1 * 0
+    · -- F(0 * -∞)：0 = 1 * 0
       exact (Semiring.mul_zero (R:=A) (1 : A)).symm
-    · -- F(0 + 0)：1 = 1 * 1
+    · -- F(0 * 0)：1 = 1 * 1
       exact (one_mul (1 : A)).symm,
 
   --𝔹 では 0 : 𝔹 = 𝔹.negInf、 1 : 𝔹 = 𝔹.zero が既にインスタンスで入っている.
@@ -394,7 +398,7 @@ theorem addIdempotent_iff_nonempty_boolAlgebra
   constructor
   · -- (→) 加法冪等 ⇒ 𝔹-代数が存在
     intro h
-    --Algebra.ofHomは準同型写像から𝔹同型の構造を作ってくれる。準同型写像はboolHomOfAddIdemで指定してあげる。
+    --Algebra.ofHomは準同型写像から𝔹代数の構造を作ってくれる。準同型写像はboolHomOfAddIdemで指定してあげる。
     exact ⟨Algebra.ofHom (boolHomOfAddIdem A h)⟩
 
   · -- (←) 𝔹-代数が存在 ⇒ 加法冪等
@@ -419,9 +423,9 @@ theorem addIdempotent_iff_nonempty_boolAlgebra
 
     -- あとは mul_one で仕上げ
     -- （向きを合わせるために対称を取る）
-    have : a + a = a := by
-      simpa [mul_one] using hmul.symm
-    exact this
+    --have : a + a = a := by
+    simpa [mul_one] using hmul.symm
+    --exact this
 
 
 
@@ -429,21 +433,21 @@ theorem addIdempotent_iff_nonempty_boolAlgebra
 
 section OrderFromAddIdem
 
-variable (A : Type u) [Semiring A]
+variable {A : Type u} [Semiring A]
 
 --a ≤ₐ bをa + b = bとする。
 def leA (a b : A) : Prop := a + b = b
 
 --反射律
-theorem leA_refl (h : AddIdempotent A) (a : A) : leA (A:=A) a a := by
+theorem leA_refl (h : AddIdempotent A) (a : A) : leA a a := by
   unfold leA
   simpa using h a
 
 --推移律
-theorem leA_trans {a b c : A}
-    (hab : leA (A:=A) a b) (hbc : leA (A:=A) b c) :
-    leA (A:=A) a c := by
-  unfold leA at hab hbc ⊢
+theorem leA_trans (a b c : A)
+    (hab : leA  a b) (hbc : leA  b c) :
+    leA  a c := by
+  unfold leA at * -- hab hbc ⊢
   have t1 : a + c = a + (b + c) := by simp [hbc]
   have t2 : a + (b + c) = (a + b) + c := by simp [add_assoc]
   have t3 : (a + b) + c = b + c := by simp [hab]
@@ -453,20 +457,20 @@ theorem leA_trans {a b c : A}
 theorem leA_antisymm {a b : A}
     (hab : leA (A:=A) a b) (hba : leA (A:=A) b a) :
     a = b := by
-  unfold leA at hab hba
+  unfold leA at * -- hab hba
   have : a = a + b := by simpa [add_comm] using hba.symm
   exact this.trans hab
 
 --0は最小元
-theorem bot_leA (a : A) : leA (A:=A) (0 : A) a := by
+theorem bot_leA (a : A) : leA  (0 : A) a := by
   unfold leA
   simp [zero_add a]
 
 --mul_left
 theorem mul_left_mono_leA {a b c : A}
-    (hab : leA (A:=A) a b) :
-    leA (A:=A) (c * a) (c * b) := by
-  unfold leA at hab ⊢
+    (hab : leA  a b) :
+    leA  (c * a) (c * b) := by
+  unfold leA at * -- hab ⊢
   calc
     c * a + c * b = c * (a + b) := (Semiring.left_distrib (R:=A) c a b).symm
     _ = c * b := by
@@ -476,7 +480,7 @@ theorem mul_left_mono_leA {a b c : A}
 end OrderFromAddIdem
 end TropicalGeometry
 
---10/24
+--10/31
 universe u
 
 namespace TropicalGeometry
