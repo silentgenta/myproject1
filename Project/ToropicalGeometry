@@ -493,12 +493,16 @@ namespace Cancellative
 
 variable {A : Type u} [Semiring A]
 
---こんご便利になる(らしい)補題
+--こんご便利になる補題
 theorem cancel_left (h : Cancellative A)
     {a b c : A} (ha : a ≠ (0 : A)) (hmul : a * b = a * c) : b = c := by
+  --a=0かb=cのどちらかしかないことを示す仮定を入れる。
   have h' := h (a:=a) (b:=b) (c:=c) hmul
+  --h'に場合分けを入れる
   rcases h' with hzero | hbc
+  --a=0の場合矛盾が起こるので恒真であることを利用して証明を完了させる。haとhzeroに対して.elimを用いて完了。(False).elimの形でカッコ内の矛盾からあらゆる命題を導ける。
   · exact (ha hzero).elim
+  --自明。
   · exact hbc
 
 end Cancellative
@@ -507,7 +511,7 @@ end TropicalGeometry
 
 namespace TropicalGeometry
 
---分母が 0 でない組 (a,b)の集合を定義
+--分母が 0 でない組 (a,b)の集合を定義。//は前に書かれた情報に条件を付け加える際に用いられる表記法。今回はp(省略されているが正しくはp.1）にp.2(p.1の二つ目の元に対する条件なので正確にはp.1.2)の条件を付けくわえている。
 def FracCarrier (A : Type u) [Semiring A] : Type u :=
   { p : A × A // p.2 ≠ (0 : A) }
 
@@ -515,14 +519,29 @@ namespace FracCarrier
 
 variable {A : Type u} [Semiring A]
 
--- 分子 / 分母を記号で短縮
+-- 分子
 def num (p : FracCarrier A) : A := p.1.1
+-- 分母
 def den (p : FracCarrier A) : A := p.1.2
 
+/-整理したものが以下
+p : { p : A × A // p.2 ≠ 0 }
+
+p.1        : A × A        -- (a, b)
+p.1.1      : A            -- a
+p.1.2      : A            -- b
+p.2        : p.1.2 ≠ 0    
+-/
+
+--分数を作成した時にその分母と分子が何であるかを引き出すための補題
+--分子
 @[simp] lemma num_mk (a b : A) (hb : b ≠ 0) :
     num (A:=A) ⟨(a,b), hb⟩ = a := rfl
+--分母
 @[simp] lemma den_mk (a b : A) (hb : b ≠ 0) :
     den (A:=A) ⟨(a,b), hb⟩ = b := rfl
+
+--分数を定義した時に分母が０でないことを利用できるようにするための補題
 @[simp] lemma den_ne_zero (p : FracCarrier A) :
     den (A:=A) p ≠ 0 := p.2
 
@@ -748,6 +767,7 @@ lemma mulRep_compat (hC : Cancellative A)
 
 end FracCarrier
 
+--11/7
 /-- Q(A) 上の加法（2段階 `Quot.lift` 方式） -/
 noncomputable def Q.add (x y : Q (A:=A) hC) : Q (A:=A) hC :=
 by
@@ -1284,6 +1304,7 @@ lemma right_distrib_rep (hC : Cancellative A)
 
 end FracCarrier
 
+--11/14
 /-************************ ここから構造を持ち上げる ************************-/
 
 -- 加法群律（加法：可換・結合・0 は単位）
