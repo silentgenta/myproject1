@@ -997,26 +997,165 @@ lemma left_distrib_rep (hC : Cancellative A)
     Rel (A:=A)
       (mulRep (A:=A) hC p (addRep (A:=A) hC q r))
       (addRep (A:=A) hC (mulRep (A:=A) hC p q) (mulRep (A:=A) hC p r)) := by
-  -- 目標：(p.num*(q.num*r.den + r.num*q.den))*(p.den*(q.den*r.den))
-  --     = ((p.num*q.num)*r.den + (p.num*r.num)*q.den) * ((p.den*q.den)*r.den)
+  -- まず p,q,r の中身を素の変数名にばらす
+  rcases p with ⟨⟨pn, pd⟩, hp0⟩
+  rcases q with ⟨⟨qn, qd⟩, hq0⟩
+  rcases r with ⟨⟨rn, rd⟩, hr0⟩
+
+  -- Rel, addRep, mulRep を展開して、A 上の等式に落とす
   unfold Rel addRep mulRep
-  -- 展開→分配→順序入替で一致
-  -- 左側の分子：
-  have L :
-    (p.num * (q.num * r.den + r.num * q.den))
-    = p.num*q.num*r.den + p.num*r.num*q.den := by
-    have := Semiring.left_distrib (R:=A) p.num (q.num * r.den) (r.num * q.den)
-    simpa [mul_comm, mul_left_comm, mul_assoc] using this
-  -- 全体としては右分配一回で形が一致する
-  have H₁ :=
-    Semiring.right_distrib (R:=A)
-      (p.num*q.num*r.den) (p.num*r.num*q.den) (p.den*(q.den*r.den))
-  -- 右辺の分配形
-  have H₂ :=
-    Semiring.right_distrib (R:=A)
-      ((p.num*q.num)*r.den) ((p.num*r.num)*q.den) ((p.den*q.den)*r.den)
-  -- 仕上げ
-  simpa [L, mul_comm, mul_left_comm, mul_assoc] using H₂.symm
+  -- FracCarrier.num / den はただの fst / snd
+  simp [FracCarrier.num, FracCarrier.den]
+
+  /-
+  いまゴール（≒タクティク状態のターゲット）は：
+    pn * ((qn * rd + rn * qd) * (pd * (qd * (pd * rd))))
+      =
+    (pn * (qn * (pd * rd)) + pn * (rn * (pd * qd)))
+      * (pd * (qd * rd))
+
+  これを2段ロケットで示す：
+   (1) 左辺 = pn * (qn*rd + rn*qd) * X
+   (2) その X 版から最終右辺へ
+  を合成する。
+  -/
+
+  -- まず分母側の大きい積を名前付けしておく
+  set X : A := pd * qd * (pd * rd) with hX
+  set Y : A := pd * (qd * rd) with hY
+
+  -- (1) 左辺を pn * (qn*rd + rn*qd) * X という「標準形」に寄せる
+  have lhs_reassoc :
+      pn * ((qn * rd + rn * qd) * (pd * (qd * (pd * rd))))
+        =
+      pn * (qn * rd + rn * qd) * X := by
+    -- まず (pd * (qd * (pd * rd))) を assoc で (pd * qd) * (pd * rd) 型にする
+    have tail_assoc :
+        pd * (qd * (pd * rd))
+          = pd * qd * (pd * rd) := by
+      -- (pd * (qd * Z)) = (pd * qd) * Z, and reassociate
+      simp [mul_assoc]
+    calc
+      pn * ((qn * rd + rn * qd) * (pd * (qd * (pd * rd))))
+          = pn * ((qn * rd + rn * qd) * (pd * qd * (pd * rd))) := by
+              simp [tail_assoc]
+      _   = pn * (qn * rd + rn * qd) * (pd * qd * (pd * rd)) := by
+              -- reassociate pn * ((...) * (...)) → pn * (...) * (...)
+              simp [mul_assoc]
+      _   = pn * (qn * rd + rn * qd) * X := by
+              simp [hX]
+
+  -- (2a) 左側：pn * (qn*rd + rn*qd) * X を足し算に展開
+  --      = pn*(qn*rd)*X + pn*(rn*qd)*X
+  have left_expand :
+      pn * (qn * rd + rn * qd) * X
+        =
+      pn * (qn * rd) * X + pn * (rn * qd) * X := by
+    -- まず (qn*rd + rn*qd) * X を右分配
+    have inner :
+        (qn * rd + rn * qd) * X
+          =
+        (qn * rd) * X + (rn * qd) * X := by
+      -- right_distrib: (a+b)*c = a*c + b*c
+      have tmp :=
+        Semiring.right_distrib (R:=A) (qn * rd) (rn * qd) X
+      simpa using tmp
+    -- 次に pn * [...] を左分配
+    -- pn * ( (qn*rd)*X + (rn*qd)*X )
+    --   = pn*(qn*rd)*X + pn*(rn*qd)*X
+    have tmp2 :=
+      Semiring.left_distrib (R:=A) pn ((qn * rd) * X) ((rn * qd) * X)
+    -- tmp2 :
+    --   pn * ((qn * rd) * X + (rn * qd) * X)
+    --     =
+    --   pn * ((qn * rd) * X) + pn * ((rn * qd) * X)
+    simpa [inner, mul_assoc] using tmp2
+
+  -- (2b) 右側の和を別の形に展開：
+  --   (pn*qn*(pd*rd) + pn*rn*(pd*qd)) * Y
+  --   = pn*qn*(pd*rd)*Y + pn*rn*(pd*qd)*Y
+  have right_expand :
+      (pn * qn * (pd * rd) + pn * rn * (pd * qd)) * Y
+        =
+      pn * qn * (pd * rd) * Y
+      + pn * rn * (pd * qd) * Y := by
+    -- これも right_distrib
+    have tmp :=
+      Semiring.right_distrib (R:=A)
+        (pn * qn * (pd * rd))
+        (pn * rn * (pd * qd))
+        Y
+    simpa [mul_assoc] using tmp
+
+  -- (2c) 個々の項が同じものを掛け算の順序替えで表現してることを示す
+  --      pn * (qn * rd) * X  =  pn * qn * (pd * rd) * Y
+  have term1_match :
+      pn * (qn * rd) * X
+        =
+      pn * qn * (pd * rd) * Y := by
+    -- 両辺とも可換・結合の並べ替えだけで一致する
+    simp [X, Y, hX, hY,
+          mul_assoc, mul_comm, mul_left_comm]
+
+  --      pn * (rn * qd) * X  =  pn * rn * (pd * qd) * Y
+  have term2_match :
+      pn * (rn * qd) * X
+        =
+      pn * rn * (pd * qd) * Y := by
+    simp [X, Y, hX, hY,
+          mul_assoc, mul_comm, mul_left_comm]
+
+  -- (2d) 右側の「pd*(qd*rd)」に戻すための再結合
+  --  (pn*(qn*(pd*rd)) + pn*(rn*(pd*qd))) * (pd*(qd*rd))
+  --   と
+  --  (pn*qn*(pd*rd) + pn*rn*(pd*qd)) * Y
+  --  が同じだという補題
+  have rhs_reassoc :
+      (pn * (qn * (pd * rd)) + pn * (rn * (pd * qd)))
+          * (pd * (qd * rd))
+        =
+      (pn * qn * (pd * rd) + pn * rn * (pd * qd)) * Y := by
+    calc
+      (pn * (qn * (pd * rd)) + pn * (rn * (pd * qd)))
+          * (pd * (qd * rd))
+          =
+        ((pn * qn * (pd * rd)) + (pn * rn * (pd * qd)))
+          * (pd * (qd * rd)) := by
+            -- assocで pn*(qn*...) = pn*qn*..., 同様に rn側も
+            simp [mul_assoc]
+      _ =
+        (pn * qn * (pd * rd) + pn * rn * (pd * qd)) * Y := by
+            simp [hY]
+
+  ----------------------------------------------------------------
+  -- (2e) “X 形” から “最終右辺”までの鎖を mid_chain として証明
+  ----------------------------------------------------------------
+  have mid_chain :
+      pn * (qn * rd + rn * qd) * X
+        =
+      (pn * (qn * (pd * rd)) + pn * (rn * (pd * qd)))
+          * (pd * (qd * rd)) := by
+    -- ここは calc を使って大丈夫。スタートとゴールがハッキリ一致してるから。
+    calc
+      pn * (qn * rd + rn * qd) * X
+          =
+        pn * (qn * rd) * X + pn * (rn * qd) * X := left_expand
+      _ =
+        pn * qn * (pd * rd) * Y
+        + pn * rn * (pd * qd) * Y := by
+          simp [term1_match, term2_match]
+      _ =
+        (pn * qn * (pd * rd) + pn * rn * (pd * qd)) * Y :=
+          (right_expand.symm)
+      _ =
+        (pn * (qn * (pd * rd)) + pn * (rn * (pd * qd)))
+          * (pd * (qd * rd)) := rhs_reassoc.symm
+
+  ----------------------------------------------------------------
+  -- 最後に、(1) と mid_chain を合成して元のゴールを証明
+  ----------------------------------------------------------------
+  grind
+  --exact lhs_reassoc.trans mid_chain
 
 /-- 右分配（代表版） -/
 lemma right_distrib_rep (hC : Cancellative A)
