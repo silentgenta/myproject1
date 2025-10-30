@@ -939,22 +939,28 @@ lemma addRep_assoc (hC : Cancellative A)
       _ = (a * (d*f)) * k₂ + ((c*f) * (b * k₂) + (e*d) * (b * k₂)) := by
             simp [HR2']
       _ = a * (d*f) * k₂ + (c*f) * b * k₂ + (e*d) * b * k₂ := by
-            simp [mul_assoc]
+            simp [mul_assoc, add_assoc]
 
-  -- k₁ と k₂ は結合法で同じ
+  -- k₁ と k₂ は結合法で同じ（←ここを修正）
   have k_same : k₁ = k₂ := by
-    ac_rfl
+    -- k₁ = b * (d * f)
+    -- k₂ = (b * d) * f
+    -- mul_assoc b d f : (b * d) * f = b * (d * f)
+    -- simp で両辺を同じ形に正規化してくれる
+    simp [k₁, k₂, mul_assoc]
 
   -- 3項の和の並び替え（括弧外しを含む）
   have align :
       a*d*f*k₁ + c*b*f*k₁ + e*(b*d)*k₁
-        = a*(d*f)*k₂ + (c*f)*b*k₂ + (e*d)*b*k₂ := by
+        = a*(d*f)*k₂ + (c*f)*b*k₂ + (e*d)*b*k₂ := by 
+        simp [k_same, mul_assoc, mul_comm, mul_left_comm]
     -- まず k₁ を k₂ に置換してから ac で並べ替え
-    simpa [k_same, mul_assoc, mul_comm, mul_left_comm] using
+    /-simpa [k_same, mul_assoc, mul_comm, mul_left_comm] using
       (by
          have : a*d*f*k₂ + c*b*f*k₂ + e*(b*d)*k₂
-              = a*(d*f)*k₂ + (c*f)*b*k₂ + (e*d)*b*k₂ := by ac_rfl
-         exact this)
+              = a*(d*f)*k₂ + (c*f)*b*k₂ + (e*d)*b*k₂ := by
+            ac_rfl
+         exact this)-/
 
   -- まとめ
   calc
@@ -962,6 +968,7 @@ lemma addRep_assoc (hC : Cancellative A)
         = a*d*f*k₁ + c*b*f*k₁ + e*(b*d)*k₁ := HL
     _   = a*(d*f)*k₂ + (c*f)*b*k₂ + (e*d)*b*k₂ := align
     _   = (a * (d*f) + (c*f + e*d) * b) * k₂ := HR.symm
+
 
 
 
