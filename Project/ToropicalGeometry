@@ -545,7 +545,7 @@ p.2        : p.1.2 ≠ 0
 @[simp] lemma den_ne_zero (p : FracCarrier A) :
     den (A:=A) p ≠ 0 := p.2
 
---同値関係
+--p=a/b q=x/dの時、p=qをad=bcという形で表現するための定義
 def Rel (p q : FracCarrier A) : Prop :=
   num (A:=A) p * den (A:=A) q = num (A:=A) q * den (A:=A) p
 
@@ -556,6 +556,7 @@ def Rel (p q : FracCarrier A) : Prop :=
 --対称律
 @[simp] lemma rel_symm {p q : FracCarrier A} :
     Rel (A:=A) p q → Rel (A:=A) q p := by
+  --h.symmはRelで展開するとq.num * p.den = p.num * q.denなので、mulcommで入れ替えれば良い。
   intro h; simpa [Rel, mul_comm] using h.symm
 
 --推移律
@@ -565,33 +566,36 @@ lemma rel_trans (hC : Cancellative A)
   intro hpq hqr
   have hq0 : den (A:=A) q ≠ (0 : A) := den_ne_zero (A:=A) q
 
-  -- ① (hpq) を右から r.den で掛け、形を q.den * (p.num * r.den) = r.den * (q.num * p.den)に整える
-  have h1' :
+  -- q.den * (p.num * r.den) = r.den * (q.num * p.den)を作る
+  have h1 :
       den (A:=A) q * (num (A:=A) p * den (A:=A) r)
         = den (A:=A) r * (num (A:=A) q * den (A:=A) p) := by
+    --(num p * den q) * den r = (num q * den p) * den rを作る。
     have t := congrArg (fun x : A => x * den (A:=A) r) hpq
-    calc
+    grind
+    /-calc
       den (A:=A) q * (num (A:=A) p * den (A:=A) r)
-          = (num (A:=A) p * den (A:=A) q) * den (A:=A) r := by ac_rfl
+          = (num (A:=A) p * den (A:=A) q) * den (A:=A) r := by ac_rfl --assosiativeとcommtativeを貫通する便利なrflがac_rfl
       _ = (num (A:=A) q * den (A:=A) p) * den (A:=A) r := t
-      _ = den (A:=A) r * (num (A:=A) q * den (A:=A) p) := by ac_rfl
+      _ = den (A:=A) r * (num (A:=A) q * den (A:=A) p) := by ac_rfl-/
 
-  -- ② (hqr) を右から p.den で掛け、形を q.den * (r.num * p.den) = r.den * (q.num * p.den)に整える
-  have h2' :
+  -- ② q.den * (r.num * p.den) = r.den * (q.num * p.den)を作る
+  have h2 :
       den (A:=A) q * (num (A:=A) r * den (A:=A) p)
         = den (A:=A) r * (num (A:=A) q * den (A:=A) p) := by
     have t := congrArg (fun x : A => x * den (A:=A) p) hqr
-    calc
+    grind
+    /-calc
       den (A:=A) q * (num (A:=A) r * den (A:=A) p)
           = (num (A:=A) r * den (A:=A) q) * den (A:=A) p := by ac_rfl
       _ = (num (A:=A) q * den (A:=A) r) * den (A:=A) p := t.symm
-      _ = den (A:=A) r * (num (A:=A) q * den (A:=A) p) := by ac_rfl
+      _ = den (A:=A) r * (num (A:=A) q * den (A:=A) p) := by ac_rfl-/
 
-  -- ③ 同じ右辺を経由して q.den を左から消去
+  -- h1とh2の右辺が等しいことを用いてq.denを消去できる形にする。
   have h3 :
       den (A:=A) q * (num (A:=A) p * den (A:=A) r)
         = den (A:=A) q * (num (A:=A) r * den (A:=A) p) :=
-    h1'.trans h2'.symm
+    h1.trans h2.symm
 
   have h4 :
       num (A:=A) p * den (A:=A) r
@@ -603,26 +607,34 @@ lemma rel_trans (hC : Cancellative A)
 
 -- Lem2.1.9-aのRelは（cancellativeの下で）同値関係になる。  
 def setoid (hC : Cancellative A) : Setoid (FracCarrier A) where
-  r := Rel (A:=A)
+  r := Rel (A:=A)  --同値と主張したい関係を指定
   iseqv :=
     ⟨ (by intro p; exact rel_refl (A:=A) p)
     , (by intro p q h; exact rel_symm (A:=A) h)
     , (by intro p q r hpq hqr; exact rel_trans (A:=A) hC hpq hqr) ⟩
+
+/-
+structure Setoid (α : Sort u) where
+  r     : α → α → Prop
+  iseqv : Equivalence r　--Equivalenceはreflとsymmとtransを含む構造なので3つの引数を持つ。
+
+-/
 
 end FracCarrier
 end TropicalGeometry
 
 namespace TropicalGeometry
 open Classical
-
-/- 商集合 Q(A) を作り、要素を a/b と書けるようにする -/
+--11/7
+--商集合 Q(A) を作り、要素をa/bと書けるようにする 
 
 section QuotBasic
 variable {A : Type u} [Semiring A]
 variable (hC : Cancellative A)
 
-/-- A の分数の商集合：`Q(A) := {(a,b) | b ≠ 0}/∼` -/
+-- Q(A) := {(a,b) | b ≠ 0}/∼　すなわちa/bを作る。Quotはある型αと、その型の上の同値関係rを与えてrで割った商集合を作るためのコマンド。
 def Q : Type u := Quot (FracCarrier.setoid (A:=A) hC)
+--Quot.{u} {α : Sort u} (r : α → α → Prop) : Sort u
 
 /-- 基本コンストラクタ：`a/b`（ただし `b ≠ 0`）を同値類に持ち上げる。 -/
 def Q.mk (a b : A) (hb : b ≠ 0) : Q (A:=A) hC :=
@@ -635,25 +647,22 @@ structure NZDen (A : Type u) [Semiring A] : Type u where
 
 namespace Q
 
-/-- 記法 `a / ⟨b, hb⟩` の本体：`Q.mk a b hb`。 -/
+-- 記法 a / ⟨b, hb⟩ の本体：Q.mk a b hb。 
 def ofPair (a : A) (b : NZDen A) : Q (A:=A) hC :=
   Q.mk (A:=A) hC a b.val b.ne_zero
 
 end Q
 
-/-! ### 記法
-
-- まずこのセクション内だけ有効な **ローカル記法**。
-  セクション変数 `hC` が見えるので、`a / b` がそのまま使えます。
-- 併せて、任意の場所で使える **スコープ付き記法** `a /[hC] b` も用意。
-  こちらは `hC` を明示するので前チェックに引っかかりません。
+/-
+まずこのセクション内だけ有効なローカル記法を作る。その場合hCがあるので、a / b がそのまま使える。
+次に、任意の場所で使える スコープ付き記法a /[hC] bを作る。hCを明示することでエラーを減らす。
 -/
 
-/-- セクション内限定：`a / b : Q(A,hC)` （`b : NZDen A`） --/
+-- セクション内限定：a / b : Q(A,hC) （b : NZDen A） 
 local notation a:70 " / " b:71 =>
   TropicalGeometry.Q.ofPair (A:=A) hC a b
 
-/-- どこでも使える版：`a /[hC] b` （`b : NZDen A`） --/
+-- どこでも使える版：a /[hC] b （b : NZDen A） 
 scoped[TGFrac] notation a:70 " /[" hC:71 "] " b:71 =>
   TropicalGeometry.Q.ofPair (A:=_) hC a b
 
@@ -672,7 +681,7 @@ variable (hC : Cancellative A)
 
 namespace FracCarrier
 
-/-- 分母同士の積は 0 にならない（`Cancellative` を利用） -/
+/-- 分母同士の積は 0 にならない（Cancellative を利用） -/
 lemma den_mul_ne_zero (hC : Cancellative A)
     (p q : FracCarrier A) : p.den * q.den ≠ 0 := by
   have hb := den_ne_zero (A:=A) p
@@ -766,8 +775,7 @@ lemma mulRep_compat (hC : Cancellative A)
     _ = (p'.num * q'.num) * (p.den * q.den) := tR.symm
 
 end FracCarrier
-
---11/7
+--11/14
 /-- Q(A) 上の加法（2段階 `Quot.lift` 方式） -/
 noncomputable def Q.add (x y : Q (A:=A) hC) : Q (A:=A) hC :=
 by
@@ -852,9 +860,8 @@ by
   exact mulCore₂ x y
 
 end QAddMul
-end TropicalGeometry
 
-namespace TropicalGeometry
+--11/21
 open Classical
 
 section QSemiring
@@ -1304,7 +1311,7 @@ lemma right_distrib_rep (hC : Cancellative A)
 
 end FracCarrier
 
---11/14
+--11/21
 /-************************ ここから構造を持ち上げる ************************-/
 
 -- 加法群律（加法：可換・結合・0 は単位）
@@ -1551,7 +1558,7 @@ noncomputable instance : Semifield (Q (A:=A) hC) where
 end QSemiring
 end TropicalGeometry
 
-
+--11/28
 
 
 #min_imports
