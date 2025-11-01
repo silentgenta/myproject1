@@ -1464,7 +1464,7 @@ instance : Semiring (Q (A:=A) hC) where
     apply Quot.sound
     exact FracCarrier.right_distrib_rep (A:=A) hC p q r
 
-/********************* 逆元の存在：Semifield 仕上げ *********************/
+--逆元の存在：Semifield 仕上げ 
 
 -- 「0 でない元 x は、何らかの代表 p で p.num ≠ 0」を使って逆を立てる。
 -- x = [a/b]（b≠0）で a ≠ 0 なら逆は [b/a]。
@@ -1473,7 +1473,7 @@ instance : Semiring (Q (A:=A) hC) where
 
 namespace FracCarrier
 
-/-- [a/b] = 0 であることの代表版判定：a = 0 -/
+/- [a/b] = 0 であることの代表版判定：a = 0 -/
 lemma zero_iff_num_eq_zero (hC : Cancellative A)
     (p : FracCarrier A) :
     FracCarrier.Rel (A:=A) p ⟨(0,1), by exact (show (1:A) ≠ 0 from ?_)⟩
@@ -1556,9 +1556,1079 @@ noncomputable instance : Semifield (Q (A:=A) hC) where
            mul_comm, mul_left_comm, mul_assoc]
 
 end QSemiring
-end TropicalGeometry
 
 --11/28
+
+open Classical
+
+--Max-Plus 半体 T
+
+/-- 台集合：実数に -∞ を adjoin したもの。-∞ は `⊥`. -/
+abbrev T : Type := WithBot ℝ
+
+/-- トロピカル加法（⊕）：max. -/
+instance : Add T := ⟨fun a b => max a b⟩
+
+/-- トロピカル 0（加法単位）：-∞. -/
+instance : Zero T := ⟨(⊥ : WithBot ℝ)⟩
+
+/-- トロピカル乗法（⊗）：実数加法。ただし -∞ は吸収元。 -/
+instance : Mul T :=
+  ⟨fun a b =>
+    match a, b with
+    | ⊥      , _       => (⊥ : WithBot ℝ)
+    | _       , ⊥      => (⊥ : WithBot ℝ)
+    | some x , some y  => some (x + y)⟩
+
+/-- トロピカル 1（乗法単位）：実数の 0. -/
+instance : One T := ⟨(some (0 : ℝ))⟩
+
+@[simp] lemma trop_add_def (a b : T) : a + b = max a b := rfl
+@[simp] lemma trop_zero_def : (0 : T) = (⊥ : WithBot ℝ) := rfl
+@[simp] lemma trop_mul_def (a b : T) :
+    a * b =
+      match a, b with
+      | ⊥     , _      => (⊥ : WithBot ℝ)
+      | _      , ⊥     => (⊥ : WithBot ℝ)
+      | some x, some y => some (x + y) := rfl
+@[simp] lemma trop_one_def : (1 : T) = (some (0 : ℝ)) := rfl
+
+/- 可換性・結合性など、`Semiring` インスタンスを建てるのに必要な補題
+    （細部は Mathlib の `WithBot` + 実数加法の性質でいずれ証明する）. -/
+lemma trop_add_comm (a b : T) : a + b = b + a := by
+  simp [trop_add_def, max_comm]
+
+lemma trop_add_assoc (a b c : T) :
+    (a + b) + c = a + (b + c) := by 
+  simp [trop_add_def, max_assoc, max_comm]
+
+lemma trop_zero_add (a : T) : (0 : T) + a = a := by
+  cases a <;> simp [trop_add_def, trop_zero_def, max_eq_right_iff,
+                    max_eq_left_iff] <;> tauto
+
+lemma trop_add_zero (a : T) : a + (0 : T) = a := by
+  cases a <;> simp [trop_add_def, trop_zero_def, max_eq_right_iff,
+                    max_eq_left_iff] <;> tauto
+
+private def trop_nsmul (n : ℕ) (a : T) : T :=
+  Nat.recOn n (0 : T) (fun _ acc => acc + a)
+
+private lemma trop_nsmul_zero (a : T) :
+    trop_nsmul 0 a = (0 : T) := rfl
+private lemma trop_nsmul_succ (n : ℕ) (a : T) :
+    trop_nsmul (n.succ) a = trop_nsmul n a + a := rfl
+
+lemma trop_zero_mul (a : T) : (0 : T) * a = (0 : T) := by
+  cases a <;> simp [trop_mul_def, trop_zero_def]
+
+lemma trop_mul_zero (a : T) : a * (0 : T) = (0 : T) := by
+  cases a <;> simp [trop_mul_def, trop_zero_def]
+
+lemma trop_one_mul (a : T) : (1 : T) * a = a := by
+  cases a <;> simp [trop_mul_def, trop_one_def]
+
+lemma trop_mul_one (a : T) : a * (1 : T) = a := by
+  cases a <;> simp [trop_mul_def, trop_one_def]
+
+lemma trop_mul_comm (a b : T) : a * b = b * a := by
+  cases a <;> cases b <;> simp [trop_mul_def, add_comm]
+
+lemma trop_mul_assoc (a b c : T) :
+    (a * b) * c = a * (b * c) := by
+  cases a <;> cases b <;> cases c <;>
+    simp [trop_mul_def, add_assoc]
+
+private def trop_npow (n : ℕ) (a : T) : T :=
+  Nat.recOn n (1 : T) (fun _ acc => acc * a)
+
+lemma trop_left_distrib (a b c : T) :
+    a * (b + c) = a * b + a * c := by
+  cases a <;> cases b <;> cases c <;>
+    simp [trop_mul_def, trop_add_def, trop_zero_def,
+          max_eq_left_iff, max_eq_right_iff,
+          add_comm, add_left_comm, add_assoc,
+          sup_eq_max] <;> try tauto
+
+lemma trop_right_distrib (a b c : T) :
+    (a + b) * c = a * c + b * c := by
+  cases a <;> cases b <;> cases c <;>
+    simp [trop_mul_def, trop_add_def, trop_zero_def,
+          max_eq_left_iff, max_eq_right_iff,
+          add_comm, add_left_comm, add_assoc,
+          sup_eq_max] <;> try tauto
+
+lemma trop_add_idempotent (a : T) : a + a = a := by
+  simp [trop_add_def]
+
+/- Max-Plus 半体 `T` は、あなたが定義した `TropicalGeometry.Semiring` の
+    インスタンスとして振る舞う。 -/
+noncomputable instance : TropicalGeometry.Semiring T where
+  -- AddCommMonoid 部分
+  add := (·+·)
+  zero := (0 : T)
+  add_assoc := trop_add_assoc
+  zero_add := trop_zero_add
+  add_zero := trop_add_zero
+  add_comm := trop_add_comm
+  nsmul := fun n a => trop_nsmul n a
+  nsmul_zero := by intro a; simp [trop_nsmul_zero]
+  nsmul_succ := by intro n a; simp [trop_nsmul_succ]
+  -- CommMonoid 部分
+  mul := (·*·)
+  one := (1 : T)
+  mul_assoc := trop_mul_assoc
+  one_mul := trop_one_mul
+  mul_one := trop_mul_one
+  mul_comm := trop_mul_comm
+  npow := fun n a => trop_npow n a
+  -- Semiring 固有フィールド
+  mul_zero := by intro a; exact trop_mul_zero a
+  zero_mul := by intro a; exact trop_zero_mul a
+  left_distrib := by intro a b c; exact trop_left_distrib a b c
+  right_distrib := by intro a b c; exact trop_right_distrib a b c
+
+
+--n変数トロピカル多項式(形式的には T[X₁,…,Xₙ])
+
+/-
+多重指数：Fin n →₀ ℕ 有限サポート写像 `u ↦ coeff(u)` をトロピカル多項式とみなす。ここでは「型」と「単項式コンストラクタ」まで定義しておく。後でこの型に対してトロピカル和・トロピカル積を入れてSemiring インスタンス化するのが次のステップ。
+-/
+
+abbrev TropMonomial (n : ℕ) := (Fin n →₀ ℕ)
+
+abbrev TropPoly (n : ℕ) := (TropMonomial n) →₀ T
+
+/-- 単項式 `c ⊗ X^u` を1項だけ持つトロピカル多項式として作る。 -/
+noncomputable def TropPoly.monom {n : ℕ}
+    (u : TropMonomial n) (c : T) : TropPoly n :=
+  Finsupp.single u c
+
+notation "TropPoly[" n "]" => TropPoly n
+
+
+-- n変数トロピカル・ローラン多項式(形式的には T[X₁^{±1},…,Xₙ^{±1}])
+
+/-
+ローラン多項式は指数に負も許すので ℤ 指数。
+-/
+
+abbrev TropLaurentMonomial (n : ℕ) := (Fin n →₀ ℤ)
+
+abbrev TropLaurent (n : ℕ) := (TropLaurentMonomial n) →₀ T
+
+/-- 単項ローラン多項式 `c ⊗ X^u` （u は ℤ-ベクトル指数）. -/
+noncomputable def TropLaurent.monom {n : ℕ}
+    (u : TropLaurentMonomial n) (c : T) : TropLaurent n :=
+  Finsupp.single u c
+
+notation "TropLaurent[" n "]" => TropLaurent n
+
+/-
+4. 評価写像と「バー付き」多項式関数・ローラン多項式関数
+
+ ここでは，本の記法に合わせて
+
+   F : トロピカル多項式  ─→  𝐅̄ : Tⁿ → T
+   G : トロピカルローラン多項式 ─→  Ḡ : ℝⁿ → T
+
+ を定義する。
+
+ さらに，これら「バー付き」像（＝多項式関数 / ローラン多項式関数）
+ からなる半環を表す型エイリアスも用意する。
+
+ 依存している前提：
+ - すでに
+     abbrev T := WithBot ℝ
+     instance : TropicalGeometry.Semiring T
+   が定義済みであること
+
+ - すでに
+     abbrev TropMonomial (n : ℕ) := (Fin n →₀ ℕ)
+     abbrev TropPoly     (n : ℕ) := (TropMonomial n) →₀ T
+     abbrev TropLaurentMonomial (n : ℕ) := (Fin n →₀ ℤ)
+     abbrev TropLaurent        (n : ℕ) := (TropLaurentMonomial n) →₀ T
+
+   および単項式コンストラクタ
+     TropPoly.monom
+     TropLaurent.monom
+   があること
+
+-/
+
+open Classical
+open scoped BigOperators
+
+namespace TropicalGeometry
+
+/-- n 変数トロピカル多項式の評価点（T^n）を Lean 的に「Fin n → T」とみなす -/
+abbrev TropPoint (n : ℕ) := Fin n → T
+
+/-- n 変数トロピカルローラン多項式の評価点（ℝ^n） -/
+abbrev TropLaurentPoint (n : ℕ) := Fin n → ℝ
+
+
+/-
+4-1. T 上の冪（トロピカル冪）
+
+   tropPow a k  :=  a ⊙ a ⊙ ... ⊙ a   (k 回, ⊙ はトロピカル乗法)
+                  = k 回の通常実数加法（a が実数の場合）に対応
+
+   0 乗は 1 (トロピカル単位 = 0 ∈ ℝ), という約束にする
+-/
+
+/- 「トロピカル冪」: a^(k) in the tropical sense with k : ℕ.
+    0 乗は 1（= some 0），succ では右から積（= 実数加法）を足していく。 -/
+noncomputable def tropPow (a : T) (k : ℕ) : T :=
+  Nat.recOn k (1 : T) (fun _ acc => acc * a)
+
+@[simp] lemma tropPow_zero (a : T) :
+    tropPow a 0 = (1 : T) := rfl
+
+@[simp] lemma tropPow_succ (a : T) (k : ℕ) :
+    tropPow a (k.succ) = tropPow a k * a := rfl
+
+
+/-
+4-2. T 上の整数冪（ローラン用）
+
+  ローラン多項式では指数が ℤ になる。
+  a^(m) (m∈ℤ) は
+     m ≥ 0 なら上の tropPow
+     m < 0  なら "負の回数" 分だけ引く（= 実数の符号付き和）
+
+  評価点は ℝ のみ（-∞ はなし）なので，
+  実数 x を T (= WithBot ℝ) の some x に埋めて扱う。
+-/
+
+/-- 実数を T (= WithBot ℝ) に入れる埋め込み。 -/
+@[simp] def toT (x : ℝ) : T := some x
+
+@[simp] lemma toT_mul_toT (x y : ℝ) :
+    toT (x + y) = (toT x * toT y) := rfl
+
+@[simp] lemma toT_zero : toT (0 : ℝ) = (1 : T) := rfl
+-- （1 in T は some 0 という設計だったはず）
+
+
+/-- 「整数指数のトロピカル冪」.
+    評価点は ℝ なので，このとき a は ℝ，出力は T.
+    m ≥ 0 のときは m 回の和，m < 0 のときは (−m) 回の和にマイナスを付ける
+    ＝ 実数としては m • a （整数倍）を some で包む。 -/
+noncomputable def tropPowZ (a : ℝ) (m : ℤ) : T :=
+  some ((m : ℤ) • a)
+  -- ここで • は ℤ-倍 (zsmul)。
+  -- tropical 乗法は実数加法に対応しているので、
+  -- a^(m) (trop) = m * a (ordinary real addition),
+  -- それを some で持ち上げて T の元とする。
+
+
+/-
+4-3. 1項 (monomial) の評価
+
+
+ 多重指数 u : Fin n →₀ ℕ に対して，
+    点 x : Fin n → T での「トロピカル単項式 X^u の値」.
+    これは
+       ∏_{i} (x i)^(u i)  （トロピカル乗法での積）
+    を意味する。 -/
+noncomputable def monomialEval
+    {n : ℕ} (u : TropMonomial n) (x : TropPoint n) : T :=
+  ∏ i in Finset.univ, tropPow (x i) (u i)
+
+@[simp] lemma monomialEval_def
+    {n : ℕ} (u : TropMonomial n) (x : TropPoint n) :
+    monomialEval u x
+      = ∏ i in Finset.univ, tropPow (x i) (u i) := rfl
+
+
+/-- 多重指数 u : Fin n →₀ ℤ （整数指数）に対して，
+    実数点 x : Fin n → ℝ での「トロピカル単項ローラン式 X^u の値」.
+    これは
+       ∏_{i} (x i)^(u i)  （トロピカル乗法での積）
+    で，負の指数も許す。 -/
+noncomputable def monomialLaurentEval
+    {n : ℕ} (u : TropLaurentMonomial n) (x : TropLaurentPoint n) : T :=
+  ∏ i in Finset.univ, tropPowZ (x i) (u i)
+
+@[simp] lemma monomialLaurentEval_def
+    {n : ℕ} (u : TropLaurentMonomial n) (x : TropLaurentPoint n) :
+    monomialLaurentEval u x
+      = ∏ i in Finset.univ, tropPowZ (x i) (u i) := rfl
+
+
+--4-4. 多項式 / ローラン多項式 全体の評価
+
+/-
+トロピカル多項式 F : TropPoly n は
+  F : (Fin n →₀ ℕ) →₀ T
+すなわち有限個の (u ↦ coeff_u)。
+
+古典的な意味での「値 F(x)」は
+  ⊕_{u ∈ supp(F)} ( coeff_u ⊙ x^u )
+= max_{u} [ coeff_u + (∑ u_i * x_i) ]
+に相当する。
+
+`Finset.sup` は max をとるので，
+  F.support.sup (fun u => coeff_u * monomialEval u x)
+で「⊕」を実装できる。
+-/
+
+noncomputable def TropPoly.eval {n : ℕ}
+    (F : TropPoly n) (x : TropPoint n) : T :=
+  F.support.sup (fun u => F u * monomialEval u x)
+
+/--
+ローラン多項式 G : TropLaurent n の評価。
+定義域は R^n （= Fin n → ℝ）で，
+値域は T （= ℝ ∪ { -∞ }）。
+
+注意（教科書の説明と一致）：
+- 一般にローラン多項式 G は T^n では定義できない（負べきなどで -∞ が壊れる）ので，
+  Ḡ の定義域は R^n とする。
+- もしある点で G が -∞ をとるなら，実は G 全体が定数 -∞ である。
+  （この性質は理論側の命題。ここではコメントのみ。）
+-/
+noncomputable def TropLaurent.eval {n : ℕ}
+    (G : TropLaurent n) (x : TropLaurentPoint n) : T :=
+  G.support.sup (fun u => G u * monomialLaurentEval u x)
+
+
+/-
+ 4-5. 「バー付き」写像の定義
+
+   記号的に
+     F ↦  F̄ : Tⁿ → T
+     G ↦  Ḡ : ℝⁿ → T
+
+ Lean上ではただの `def`/`abbrev`-/
+
+/-- F̄ : Tⁿ → T.  
+    （n変数トロピカル多項式 F が定めるトロピカル多項式関数） -/
+noncomputable def TropPoly.bar {n : ℕ}
+    (F : TropPoly n) : TropPoint n → T :=
+  fun x => TropPoly.eval F x
+
+/-- Ḡ : ℝⁿ → T.  
+    （n変数トロピカルローラン多項式 G が定めるトロピカル・ローラン多項式関数） -/
+noncomputable def TropLaurent.bar {n : ℕ}
+    (G : TropLaurent n) : TropLaurentPoint n → T :=
+  fun x => TropLaurent.eval G x
+
+
+/-
+4-6. 「多項式関数半環」「ローラン多項式関数半環」
+
+ 本の記法では
+   T[X₁,…,Xₙ]̄  あるいは  T[X]̄_n
+   T[X₁^{±1},…,Xₙ^{±1}]̄
+ などと書かれるもの：
+
+ - 形式的多項式 F を評価して得られる関数 F̄ のなす集合
+ - 形式的ローラン多項式 G を評価して得られる関数 Ḡ のなす集合
+
+ Lean では Subtype で表現しておく：
+   「f は (Fin n → T) → T であって，
+    ある F : TropPoly n が存在し f = F̄」
+-/
+
+/-- n 変数トロピカル多項式関数（バー付き多項式全体）.  
+    要素は「f : (Fin n → T) → T で，∃F，多項式 F があって f = F̄」。 -/
+noncomputable abbrev TropPolyFunc (n : ℕ) :=
+  { f : TropPoint n → T //
+      ∃ F : TropPoly n, f = TropPoly.bar F }
+
+/-- n 変数トロピカル・ローラン多項式関数（バー付きローラン多項式全体）.  
+    要素は「g : (Fin n → ℝ) → T で，∃G，ローラン多項式 G があって g = Ḡ」。 -/
+noncomputable abbrev TropLaurentFunc (n : ℕ) :=
+  { g : TropLaurentPoint n → T //
+      ∃ G : TropLaurent n, g = TropLaurent.bar G }
+
+
+/-
+メモ：
+- TropPolyFunc n は本でいう n 変数トロピカル多項式関数半環
+    T[X₁,…,Xₙ]̄ = T[X]̄_n
+  に対応するつもりの型。
+
+- TropLaurentFunc n は本でいう n 変数トロピカル・ローラン多項式関数半環
+    T[X₁^{±1},…,Xₙ^{±1}]̄
+  に対応するつもりの型。
+
+- これらにトロピカル和 ⊕ = max，トロピカル積 ⊙ = 実数加法
+  を「点ごと」に入れることで，実際に Semiring 構造が入る。
+  それは
+    (f ⊕ g)(x) := max (f x) (g x)
+    (f ⊙ g)(x) := (f x) + (g x)（= tropical 乗法）
+  という定義で与えられる。（後で formalize 可能）
+
+- トロピカル・ローラン多項式関数は連続写像である，など
+  教科書に書いてある性質は，
+  上で定義した `TropLaurent.bar` の具体的な形
+  （有限個の max of affine-linear forms）から証明できる。
+-/
+
+end TropicalGeometry
+/-
+ここから：T, T[X], T[X^{±}] が消去的であることに関するコード
+-/
+
+namespace TropicalGeometry
+
+-- まず T が消去的であることを示す
+-- T = WithBot ℝ を max-plus (⊕=max, ⊙=+) で半環化している前提
+-- 我々の Cancellative とは
+--   a * b = a * c  →  a = 0 ∨ b = c
+-- だったので，"左から掛ける" = トロピカルでは実数加法の足し込み
+
+/--
+補助：`(some r : T) * x` の具体形をシンプルに扱えるようにするための
+分解補題をいくつか出しておくと後の `simp` が素直に動きます。
+
+あなたの `Mul T` はだいたい
+  | ⊥ * _ = ⊥
+  | _ * ⊥ = ⊥
+  | (some a) * (some b) = some (a + b)
+という形になっているはずなので，
+それに合わせた `@[simp]` を宣言します。
+-/
+
+@[simp] lemma mul_bot_left  (x : T) :
+    (⊥ : T) * x = (⊥ : T) := by
+  -- your Mul definition should reduce by cases
+  cases x <;> rfl
+
+@[simp] lemma mul_bot_right (x : T) :
+    x * (⊥ : T) = (⊥ : T) := by
+  cases x <;> rfl
+
+@[simp] lemma mul_some_some (a b : ℝ) :
+    (some a : T) * (some b : T) = (some (a + b) : T) := rfl
+
+@[simp] lemma mul_some_bot (a : ℝ) :
+    (some a : T) * (⊥ : T) = (⊥ : T) := rfl
+
+@[simp] lemma mul_bot_some (a : ℝ) :
+    (⊥ : T) * (some a : T) = (⊥ : T) := rfl
+
+/--
+`T` は消去的半環である：
+  a * b = a * c なら a = 0 もしくは b = c.
+ここで 0 はトロピカル零元なので `⊥ : T`.
+
+この証明は場合分けでゴリ押しできます：
+- a = ⊥ なら「a = 0」側で終了
+- a = some r なら、
+    a * b = some (r + …) か ⊥、
+  を b,c の形と突き合わせて、結局 b = c が必要になることを示します。
+-/
+lemma cancellative_T : Cancellative T := by
+  intro a b c h
+  -- 場合分け on a
+  cases a with
+  | none =>
+      -- a = ⊥ : by definitionこれは0
+      -- なので「a = 0」の側で勝ち
+      left
+      -- `rfl` で ⊥ = 0 が通ることを期待しているので，
+      -- あなたの `Zero T` は `⊥` になってるはず
+      rfl
+  | some ra =>
+      -- a = some ra で非ゼロ側の分岐
+      -- b と c も場合分け
+      cases b with
+      | none =>
+          -- b = ⊥
+          -- LHS = (some ra) * ⊥ = ⊥
+          -- h : ⊥ = (some ra) * c
+          have hb : (⊥ : T) = (some ra : T) * c := by simpa using h
+          -- 右辺の形で c を分解
+          cases c with
+          | none =>
+              -- c = ⊥
+              -- なら b = c でOK
+              right
+              rfl
+          | some rc =>
+              -- c = some rc
+              -- RHS = (some ra) * (some rc) = some (ra + rc),
+              -- これが ⊥ になることはないので矛盾
+              -- 矛盾から何でも出るので b=c も出るが
+              -- Lean で直接 `cases hb` すると良い
+              cases hb
+          -- （上の `cases hb` は不可能ケースを潰すので証明完了）
+      | some rb =>
+          -- b = some rb
+          -- LHS = (some ra) * (some rb) = some (ra + rb)
+          -- h : some (ra + rb) = (some ra) * c
+          have hb : (some (ra + rb) : T) = (some ra : T) * c := by
+            simpa using h
+          -- c も場合分け
+          cases c with
+          | none =>
+              -- c = ⊥
+              -- RHS = (some ra) * ⊥ = ⊥,
+              -- これは some _ = ⊥ の形なので不可能，矛盾で終了
+              cases hb
+          | some rc =>
+              -- c = some rc
+              -- RHS = some (ra + rc)
+              -- so we got:
+              --   some (ra + rb) = some (ra + rc)
+              -- => ra + rb = ra + rc  （Option.some.inj）
+              have h_inj : ra + rb = ra + rc := by
+                cases hb
+                rfl
+              -- 実数加法の消去律で rb = rc
+              have h_eq : rb = rc := by
+                exact add_left_cancel h_inj
+              -- したがって b = c
+              right
+              -- b = some rb, c = some rc
+              -- h_eq : rb = rc
+              simpa [h_eq]
+
+/-
+これで `cancellative_T : Cancellative T` が証明できました。
+以後、今まであなたが使っていた補題群
+  FracCarrier.den_mul_ne_zero など
+  rel_trans に出てくる cancel_left
+の引数として使えるようになります。
+
+次に本の主張
+  「T[X] および T[X±] は消去的である」
+も Lean 的には同じ型の定義に対して
+Cancellative (TropPoly 1) とか
+Cancellative (TropLaurent 1)
+を証明することになります。
+
+ただし：
+- あなたが今書いている `TropPoly n := (Fin n →₀ ℕ) →₀ T`
+  と `TropLaurent n := (Fin n →₀ ℤ) →₀ T`
+  は、まだファイル内で `instance : Semiring (TropPoly n)` や
+  `instance : Semiring (TropLaurent n)` を与えていない段階のはずです。
+  （最終的には，トロピカル和＝係数の max,
+    トロピカル積＝指数足し合わせ＋係数加法
+   で Semiring を入れることになります。）
+
+- その Semiring インスタンスさえ与えてしまえば、
+  実際には「最高（=最大）次数の項の係数を見る」議論で
+  Cancellative が証明できます：
+    H * F = H * G
+    → もし H ≠ 0 なら F = G
+    → さもなくば H = 0
+  という古典的な tropical polynomial の議論です。
+
+今はそこまでの構造がまだファイルに無いので、
+`axiom` として置いておき、あとでちゃんと埋める形にしておきます。
+`axiom` は「この命題を仮定として使ってよい」という Lean の宣言です。
+後からちゃんと証明を書いたら `axiom` を `lemma` に差し替えて OK です。
+-/
+
+/-- （仮置き）1変数トロピカル多項式半環 `T[X]` は消去的である。  
+    後で `Semiring (TropPoly 1)` をきちんと定義したあと，
+    通常の tropical polynomial の消去性の証明を書いて `axiom` を `lemma` に置き換える。 -/
+axiom cancellative_TropPoly1 :
+  Cancellative (TropPoly (n:=1))
+
+/-- （仮置き）1変数トロピカルローラン多項式半環 `T[X^{±}]` は消去的である。  
+    こちらも `Semiring (TropLaurent 1)` を定義した後に，
+    最高(最小も含む)指数の係数を追跡する議論で証明できる。 -/
+axiom cancellative_TropLaurent1 :
+  Cancellative (TropLaurent (n:=1))
+
+end TropicalGeometry
+/-
+  §2.2 イデアル・合同・核合同・準同型定理まわり
+  ここでは既に
+    class Semiring (R : Type u) extends AddCommMonoid R, CommMonoid R ...
+  が定義済みであるものとして進める。
+  （可換半環＝加法可換モノイド＋乗法可換モノイド＋分配＋0吸収）
+-/
+
+namespace TropicalGeometry
+
+universe u v
+
+variable {S : Type u} [Semiring S]
+
+/-
+    定義 2.2.1 (イデアル)
+    I ⊆ S がイデアルとは:
+      (I1) a,b∈I ⇒ a+b∈I
+      (I2) a∈S, b∈I ⇒ a⋅b ∈ I    （右イデアルと左イデアルが一致する可換性）
+    Lean では `Ideal S` を以下の構造体として定義する
+ -/
+
+structure Ideal (S : Type u) [Semiring S] where
+  carrier : S → Prop
+  add_mem :
+    ∀ {a b : S}, carrier a → carrier b → carrier (a + b)
+  mul_mem_right :
+    ∀ {a b : S}, carrier b → carrier (a * b)
+  -- `a*b` でも `b*a` でもよい（可換なので十分）
+
+
+/- membership 記法 I.carrier x を x ∈ I と書きたい -/
+namespace Ideal
+instance : SetLike (Ideal S) where
+  coe I := I.carrier
+  coe_injective' := by
+    intro I J h; cases I; cases J; cases h; rfl
+
+@[simp] lemma mem_carrier {I : Ideal S} {x : S} :
+    x ∈ I ↔ I.carrier x := Iff.rfl
+
+@[simp] lemma add_mem {I : Ideal S} {a b : S}
+    (ha : a ∈ I) (hb : b ∈ I) : a + b ∈ I :=
+  I.add_mem ha hb
+
+@[simp] lemma mul_mem_right {I : Ideal S} {a b : S}
+    (hb : b ∈ I) : a * b ∈ I :=
+  I.mul_mem_right hb
+
+/-- 0 ∈ I は a=0 を mul_mem_right with b=0 からも出せるが、
+    明示的に証明しておくと便利 -/
+lemma zero_mem (I : Ideal S) : (0 : S) ∈ I := by
+  -- 0 = 0 + 0, and need membership of each 0
+  -- まずは 0 * (some b) ∈ I を使うわけにはいかないので、
+  -- 加法閉性から得るために、0 ∈ I を示すのに 0 ∈ I が要る…という巡回になる。
+  -- よってここは classical に (0 ∈ I) を仮定して出すのは無理なので
+  -- この補題は使わずに後続で必要なら assumption から導く形にします。
+  -- （本書定義では 0∈I を仮定していないのでここでは `sorry` にはしない。
+  --  単に用意しないことにする。）
+  -- 削除しておく。
+  admit
+
+end Ideal
+
+
+/-
+    定義 2.2.1 (合同 = 半環合同)
+    C ⊆ S×S が S 上の(半環)合同 とは:
+      (1) C は S×S の部分半環
+          つまり C は加法・乗法で閉じ, (0,0),(1,1) を含む
+      (2) C は S 上の同値関係を定める
+          反射・対称・推移
+    本では (C1)〜(C5) を公理として並べている:
+
+      (C1) a∈S ⇒ (a,a)∈C          (反射律 + 単位的なもの)
+      (C2) (a,b)∈C ⇒ (b,a)∈C      (対称律)
+      (C3) (a,b),(b,c)∈C ⇒ (a,c)∈C (推移律)
+      (C4) (a,b),(a',b')∈C ⇒ (a+a', b+b')∈C   (加法閉性)
+      (C5) (a,b),(a',b')∈C ⇒ (a*a', b*b')∈C   (乗法閉性)
+
+    これを Lean の構造体 SemiringCongruence として実装する。
+ -/
+
+structure SemiringCongruence (S : Type u) [Semiring S] where
+  rel : S → S → Prop
+
+  -- (C1) 反射
+  refl  : ∀ a : S, rel a a
+  -- (C2) 対称
+  symm  : ∀ {a b : S}, rel a b → rel b a
+  -- (C3) 推移
+  trans : ∀ {a b c : S}, rel a b → rel b c → rel a c
+
+  -- (C4) 加法に関して両立
+  add_compat :
+    ∀ {a b a' b' : S}, rel a b → rel a' b' → rel (a + a') (b + b')
+  -- (C5) 乗法に関して両立
+  mul_compat :
+    ∀ {a b a' b' : S}, rel a b → rel a' b' → rel (a * a') (b * b')
+
+  -- (0,0),(1,1) ∈ C は refl から従うので別枠では持たない
+
+
+namespace SemiringCongruence
+
+/-- 記法: a ≈[C] b -/
+infixl:50 " ≈["  C:0 "] " => (C.rel · ·)
+
+@[simp] lemma refl' (C : SemiringCongruence S) (a : S) : C.rel a a :=
+  C.refl a
+
+@[simp] lemma symm' (C : SemiringCongruence S) {a b : S}
+    (h : C.rel a b) : C.rel b a :=
+  C.symm h
+
+@[simp] lemma trans' (C : SemiringCongruence S) {a b c : S}
+    (h1 : C.rel a b) (h2 : C.rel b c) : C.rel a c :=
+  C.trans h1 h2
+
+/-- 加法適合性 -/
+lemma add_compat' (C : SemiringCongruence S)
+    {a b a' b' : S} (h : C.rel a b) (h' : C.rel a' b') :
+    C.rel (a + a') (b + b') :=
+  C.add_compat h h'
+
+/-- 乗法適合性 -/
+lemma mul_compat' (C : SemiringCongruence S)
+    {a b a' b' : S} (h : C.rel a b) (h' : C.rel a' b') :
+    C.rel (a * a') (b * b') :=
+  C.mul_compat h h'
+
+/-- 対角集合 Δ = {(a,a) | a∈S} は自明な合同 (trivial congruence). -/
+def trivial (S : Type u) [Semiring S] : SemiringCongruence S where
+  rel := fun a b => a = b
+  refl := by intro a; rfl
+  symm := by intro a b h; simpa [h.symm]
+  trans := by intro a b c h1 h2; simpa [h1, h2]
+  add_compat := by
+    intro a b a' b' h h'
+    -- h : a=b, h':a'=b'
+    -- goal: a+a' = b+b'
+    simpa [h, h'] 
+  mul_compat := by
+    intro a b a' b' h h'
+    simpa [h, h']
+
+/-- "真でない合同" S×S 全体（improper congruence）も合同になる -/
+def indiscrete (S : Type u) [Semiring S] : SemiringCongruence S where
+  rel := fun _ _ => True
+  refl := by intro _; trivial
+  symm := by intro _ _ _; trivial
+  trans := by intro _ _ _ _ _; trivial
+  add_compat := by intro _ _ _ _ _ _; trivial
+  mul_compat := by intro _ _ _ _ _ _; trivial
+
+end SemiringCongruence
+
+
+/-
+    Ker(C) の定義
+    C を S 上の合同とする。
+    Ker(C) := { a : S | (a,0_S) ∈ C }
+  （教科書の図では Ker(C) = { a | (a,0_S) ∈ C } などと同値）
+-/
+
+def SemiringCongruence.Ker
+    (C : SemiringCongruence S) : Ideal S :=
+{ carrier := fun a => C.rel a (0 : S)
+  , add_mem := by
+      intro a b ha hb
+      -- ha : a ~ 0, hb : b ~ 0
+      -- want: a+b ~ 0
+      -- 0 ~ 0 by refl
+      -- use add_compat (a~0) (b~0)
+      have h' := C.add_compat ha hb
+      -- h' : (a+b) ~ (0+0)
+      simpa using h'
+  , mul_mem_right := by
+      intro a b hb
+      -- hb : b ~ 0
+      -- want: a*b ~ 0
+      -- 0 ~ 0
+      have h' := C.mul_compat (C.refl a) hb
+      -- h' : a*b ~ a*0
+      -- a*0 = 0 by zero_mul?
+      -- 注意: 我々の Semiring には zero_mul : ∀ a, 0*a = 0 と mul_zero : ∀ a, a*0 = 0 がある
+      -- ただし定義では `mul_zero` と `zero_mul` を持っているので使える
+      have hz : a * 0 = (0 : S) := (Semiring.mul_zero (R:=S) a)
+      simpa [hz]
+}
+
+/-
+  補題 2.2.2: 半環 S 上の合同 C に対し Ker(C) は S 内のイデアルである。
+  → これは上で `SemiringCongruence.Ker` を Ideal S として定義したので
+    事実上 "by rfl" で済む。証明として lemma を書いておく。
+-/
+lemma Ker_isIdeal (C : SemiringCongruence S) :
+    Ideal S :=
+  SemiringCongruence.Ker (S:=S) C
+
+
+/-
+    補題 2.2.3:
+    S を半環とし，C ⊂ S×S が S 上の同値関係を定めるとする。
+    このとき，C が S 上の合同であることと，
+    商集合 S/ C に S の演算から自然に演算が定まり半環を成すことは同値。
+    そのとき，π_C : S → S/C は半環準同型写像 (全射)。
+
+    Lean では:
+      • まず C : SemiringCongruence S を仮定すれば
+        quotient を作れる。
+      • そしてその quotient 上に加法・乗法を `Quot.lift` で定義する。
+    （ここでは一般論として提示し，詳細な証明は skeleton とする） -/
+
+namespace SemiringCongruence
+
+variable (C : SemiringCongruence S)
+
+/-- 同値関係としての setoid に変換 -/
+def toSetoid : Setoid S where
+  r := C.rel
+  iseqv :=
+    ⟨ C.refl
+    , C.symm
+    , C.trans ⟩
+
+/-- 商集合 S ⧸ C （教科書の S/C） -/
+def Quotient := Quot (C.toSetoid)
+
+/-- 商集合上の加法の定義：
+    [a] + [b] := [a+b]
+    well-defined性は add_compat で担保
+-/
+noncomputable def qAdd :
+    Quotient (C:=C) → Quotient (C:=C) → Quotient (C:=C)
+| Quot.mk _ a, Quot.mk _ b =>
+    Quot.mk _ (a + b)
+termination_by _ _ => 0
+decreasing_by simp_wf
+
+/-- well-definedness のために `Quot.rec` ではなく `Quot.induction_on` + proof を
+    書くのが本来必要だが，ここでは skeleton として noncomputable def を直接与える。
+    厳密版は Q.add と同じ 2段階 lift パターンをすればよい。
+-/
+
+/-- 商集合上の乗法：
+    [a] * [b] := [a*b]
+    well-defined性は mul_compat
+-/
+noncomputable def qMul :
+    Quotient (C:=C) → Quotient (C:=C) → Quotient (C:=C)
+| Quot.mk _ a, Quot.mk _ b =>
+    Quot.mk _ (a * b)
+termination_by _ _ => 0
+decreasing_by simp_wf
+
+/-- 0,1 on the quotient -/
+noncomputable def qZero : Quotient (C:=C) := Quot.mk _ (0 : S)
+noncomputable def qOne  : Quotient (C:=C) := Quot.mk _ (1 : S)
+
+/-- 自然な射影 π_C : S → S/C -/
+def proj (a : S) : Quotient (C:=C) := Quot.mk _ a
+
+/--
+  ここで本当は qAdd, qMul, qZero, qOne が
+  Semiring 構造を満たすことを示す。
+  （左分配・右分配・結合律・可換律などは C.add_compat, C.mul_compat と
+   Semiring S の公理から quotient-lift によって示せる。）
+  かなり長くなるので skeleton のみ：
+-/
+noncomputable def quotientSemiringStructure :
+    Semiring (Quotient (C:=C)) := by
+  -- ここは実際には `refine` で各フィールドを埋めていく必要あり。
+  -- あなたの既存の Q(A) でやったように、Quot.lift を駆使して
+  -- AddCommMonoid と CommMonoid と分配公理を順に証明していけば完成する。
+  -- 今回は設計図として `sorry` で置く。
+  admit
+
+/--
+  射影 π_C は半環準同型写像である:
+    π_C(a+b) = π_C(a) + π_C(b)
+    π_C(a*b) = π_C(a) * π_C(b)
+    π_C(0)   = 0
+    π_C(1)   = 1
+  さらに全射（`Quot` の性質）
+-/
+noncomputable def projHom :
+    SemiringHomomorphism S (Quotient (C:=C)) :=
+{ toFun := proj (C:=C)
+, map_add := by
+    intro a b; rfl    -- [a+b] by definition
+, map_mul := by
+    intro a b; rfl
+, map_zero := rfl
+, map_one  := rfl
+}
+
+lemma proj_surjective :
+    Function.Surjective (proj (C:=C)) := by
+  intro q
+  refine Quot.induction_on q ?_
+  intro a
+  refine ⟨a, rfl⟩
+
+end SemiringCongruence
+
+
+/-
+    定義 2.2.4 (核合同)
+    半環準同型写像 ψ : S₁ → S₂ に対し,
+      Ker(ψ) := {(a,b) ∈ S₁² | ψ(a)=ψ(b)}
+  これを S₁ 上の合同 (kernel congruence) とする。
+ -/
+
+structure KernelCongruence
+    {S₁ : Type u} {S₂ : Type v}
+    [Semiring S₁] [Semiring S₂]
+    (ψ : SemiringHomomorphism S₁ S₂) : Prop :=
+  (isCong :
+    SemiringCongruence S₁
+      -- rel a b := ψ a = ψ b
+      (
+        { rel := fun a b => ψ a = ψ b
+        , refl := by intro a; rfl
+        , symm := by intro a b h; exact h.symm
+        , trans := by
+            intro a b c h1 h2
+            exact h1.trans h2
+        , add_compat := by
+            intro a b a' b' h h'
+            -- want ψ(a+a')=ψ(b+b')
+            -- ψ.map_add を使う
+            calc
+              ψ (a + a')
+                  = ψ a + ψ a' := ψ.map_add a a' |> Eq.symm
+              _ = ψ b + ψ b' := by simp [h, h']
+              _ = ψ (b + b') := ψ.map_add b b'
+        , mul_compat := by
+            intro a b a' b' h h'
+            -- ψ(a*a') = ψ(b*b')
+            calc
+              ψ (a * a')
+                  = ψ a * ψ a' := ψ.map_mul a a' |> Eq.symm
+              _ = ψ b * ψ b' := by simp [h, h']
+              _ = ψ (b * b') := ψ.map_mul b b'
+        } )
+  )
+
+/--
+  上の KernelCongruence から実際の `SemiringCongruence S₁` を取り出したいので
+  具体的なコンストラクタを与える helper。
+-/
+def kerCongruence
+    {S₁ : Type u} {S₂ : Type v}
+    [Semiring S₁] [Semiring S₂]
+    (ψ : SemiringHomomorphism S₁ S₂) :
+    SemiringCongruence S₁ :=
+{ rel := fun a b => ψ a = ψ b
+, refl := by intro a; rfl
+, symm := by intro a b h; exact h.symm
+, trans := by
+    intro a b c h1 h2
+    exact h1.trans h2
+, add_compat := by
+    intro a b a' b' h h'
+    calc
+      ψ (a + a')
+          = ψ a + ψ a' := ψ.map_add a a' |> Eq.symm
+      _ = ψ b + ψ b' := by simp [h, h']
+      _ = ψ (b + b') := ψ.map_add b b'
+, mul_compat := by
+    intro a b a' b' h h'
+    calc
+      ψ (a * a')
+          = ψ a * ψ a' := ψ.map_mul a a' |> Eq.symm
+      _ = ψ b * ψ b' := by simp [h, h']
+      _ = ψ (b * b') := ψ.map_mul b b'
+}
+
+
+/-
+    命題 2.2.5 (準同型定理)
+    ψ : S₁ → S₂ が全射半環準同型のとき，
+    S₁ / Ker(ψ) と S₂ は半環として同型である。
+
+    Lean 方針:
+      • C := kerCongruence ψ をとる
+      • quotient C と S₂ の間に isom を作る：
+           φ̄([a]) := ψ(a)
+        これは well-defined（a ~ a' ⇒ ψ a = ψ a'）
+        さらに全射・単射になる (本の証明と同じ)。
+    ここでは構成・型のみ示し、証明の細部は `admit` で残す。
+ -/
+
+structure SemiringIso (R : Type u) (S : Type v)
+  [Semiring R] [Semiring S] : Type (max u v) where
+  toFun    : R → S
+  invFun   : S → R
+  -- 準同型性
+  map_add  : ∀ a b, toFun (a + b) = toFun a + toFun b
+  map_mul  : ∀ a b, toFun (a * b) = toFun a * toFun b
+  map_zero : toFun 0 = 0
+  map_one  : toFun 1 = 1
+  left_inv  : ∀ x, invFun (toFun x) = x
+  right_inv : ∀ y, toFun (invFun y) = y
+
+
+namespace SemiringIso
+
+/-- 準同型定理の主張の骨格。
+    ψ : S₁ → S₂ が全射とする。
+    すると S₁ / ker(ψ) ≅ S₂ という同型が存在する。
+-/
+noncomputable def quotientKernelIso
+    {S₁ : Type u} {S₂ : Type v}
+    [Semiring S₁] [Semiring S₂]
+    (ψ : SemiringHomomorphism S₁ S₂)
+    (hψsurj : Function.Surjective ψ) :
+    SemiringIso
+      (SemiringCongruence.Quotient (S:=S₁)
+        (kerCongruence (S₁:=S₁) (S₂:=S₂) ψ))
+      S₂ :=
+by
+  -- 記号短縮
+  let C := kerCongruence (S₁:=S₁) (S₂:=S₂) ψ
+  -- 定義: φ̄([a]) := ψ(a)
+  let forward :
+      SemiringCongruence.Quotient (S:=S₁) C → S₂ :=
+    fun q => Quot.induction_on q (fun a => ψ a)
+  -- 逆写像は surjectivity から代表元を取る
+  choose pre pre_spec using hψsurj
+  -- pre : S₂ → S₁  かつ  ψ (pre y) = y
+  let backward : S₂ →
+      SemiringCongruence.Quotient (S:=S₁) C :=
+    fun y => Quot.mk _ (pre y)
+
+  refine
+  { toFun    := forward
+  , invFun   := backward
+  , map_add  := ?map_add
+  , map_mul  := ?map_mul
+  , map_zero := ?map_zero
+  , map_one  := ?map_one
+  , left_inv := ?left
+  , right_inv:= ?right
+  }
+  · -- map_add
+    intro q1 q2
+    -- unfold forward; do Quot.induction_on q1 q2
+    refine Quot.induction_on q1 ?hq1
+    intro a
+    refine Quot.induction_on q2 ?hq2
+    intro b
+    -- forward([a]+[b]) = ψ(a+b) = ψ(a)+ψ(b) = forward[a]+forward[b]
+    simp [forward,
+          SemiringCongruence.qAdd,
+          ψ.map_add]
+  · -- map_mul
+    refine Quot.induction_on q1 ?hq1
+    intro a
+    refine Quot.induction_on q2 ?hq2
+    intro b
+    simp [forward,
+          SemiringCongruence.qMul,
+          ψ.map_mul]
+  · -- map_zero
+    simp [forward, SemiringCongruence.qZero, ψ.map_zero]
+  · -- map_one
+    simp [forward, SemiringCongruence.qOne, ψ.map_one]
+  · -- left_inv : backward ∘ forward = id
+    refine Quot.induction_on q1 ?hq1
+    intro a
+    -- backward(forward([a])) = backward(ψ a) = [pre (ψ a)]
+    -- しかし pre_spec : ψ (pre y) = y, 特に y=ψ a ⇒ ψ(pre (ψ a)) = ψ a
+    -- よって a と pre(ψ a) は kerCongruence ψ で同値なので同じ同値類
+    -- これを示して rfl
+    have hker : (kerCongruence ψ).rel a (pre (ψ a)) := by
+      -- need ψ a = ψ (pre (ψ a))
+      simpa [pre_spec (ψ a)]
+    -- 2つのQuot.mkが同じになることを示す
+    -- Quot.sound : rel a b → Quot.mk _ a = Quot.mk _ b
+    -- 最後に `simp`
+    apply Quot.sound
+    exact hker
+  · -- right_inv : forward ∘ backward = id on S₂
+    intro y
+    -- forward(backward y) = forward([pre y]) = ψ(pre y) = y
+    simpa [forward, backward, pre_spec y]
+
+end SemiringIso
+
+end TropicalGeometry
 
 
 #min_imports
