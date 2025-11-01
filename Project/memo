@@ -13,3 +13,138 @@ def P2 : Point := { x := 1, y := 2 }
 
 -- この2つは定義的に同じ
 example : P1 = P2 := rfl
+1102memo
+open Classical
+open Tropical
+open WithTop
+open LinearOrderedAddCommGroup
+
+/--
+T := トロピカル（max-plus 型）な実数拡大体。
+Mathlib では `Tropical (WithTop ℝ)` として既に可換半環になっている。
+ここではそれを我々独自の `TropicalGeometry.Semiring` / `Semifield`
+のインスタンスとして持ち上げる。
+-/
+notation "T" => Tropical (WithTop ℝ)
+
+/-- `T` は我々の定義した（可換）半環クラス `TropicalGeometry.Semiring` をみたす。 -/
+noncomputable instance : TropicalGeometry.Semiring T :=
+by
+  -- 既存の `AddCommMonoid T` / `CommMonoid T` を流用しつつ，
+  -- 我々の `Semiring` が要求する追加フィールドだけ証明する。
+  refine
+  { -- まず AddCommMonoid のデータをそのまま詰め替える
+    add := (inferInstance : AddCommMonoid T).add
+    add_assoc := (inferInstance : AddCommMonoid T).add_assoc
+    zero := (inferInstance : AddCommMonoid T).zero
+    zero_add := (inferInstance : AddCommMonoid T).zero_add
+    add_zero := (inferInstance : AddCommMonoid T).add_zero
+    add_comm := (inferInstance : AddCommMonoid T).add_comm
+    nsmul := (inferInstance : AddCommMonoid T).nsmul
+    nsmul_zero := (inferInstance : AddCommMonoid T).nsmul_zero
+    nsmul_succ := (inferInstance : AddCommMonoid T).nsmul_succ
+
+    -- 次に CommMonoid のデータをそのまま詰め替える
+    mul := (inferInstance : CommMonoid T).mul
+    mul_assoc := (inferInstance : CommMonoid T).mul_assoc
+    one := (inferInstance : CommMonoid T).one
+    one_mul := (inferInstance : CommMonoid T).one_mul
+    mul_one := (inferInstance : CommMonoid T).mul_one
+    mul_comm := (inferInstance : CommMonoid T).mul_comm
+    npow := (inferInstance : CommMonoid T).npow
+
+    -- 最後に我々の Semiring 独自のフィールド
+    mul_zero := by
+      intro a
+      -- mathlib 標準の `mul_zero` をそのまま使える
+      simp[mul_zero a]
+    zero_mul := by
+      intro a
+      simp[zero_mul]
+    left_distrib := by
+      intro a b c
+      -- mathlib の `mul_add : a*(b+c)=a*b+a*c`
+      simp[mul_add]
+    right_distrib := by
+      intro a b c
+      -- mathlib の `add_mul : (a+b)*c=a*c+b*c`
+      simp[add_mul]
+  }
+
+/- 加法が冪等（a + a = a）であることはトロピカル半環の特徴のひとつ -/
+example (a : T) : a + a = a := by
+  simp[add_self]
+
+/- 1 ⊕ 0 = 1（トロピカル加法での単位的ふるまい） -/
+example : (1 : T) + (0 : T) = (1 : T) := by
+  -- 元コードと同様に `untrop` で WithTop ℝ の世界に戻して示す
+  rw [← untrop_inj_iff]
+  rw [untrop_add]
+  rw [untrop_zero]
+  rfl
+
+/- 乗法単位元 1 の作用 a ⊗ 1 = a -/
+example (a : T) : a * (1 : T) = a := by
+  rw [← untrop_inj_iff]
+  rw [untrop_mul]
+  rw [untrop_one]
+  -- `untrop_mul` 後は WithTop ℝ 上での加法になっていて，
+  -- それに対する `+ 0 = _` を使えば終わる
+  simp[add_zero]
+
+
+--`T` は我々の意味での `Semifield`（0≠1 かつ 非ゼロ元は右逆元を持つ）になる。
+
+noncomputable instance : TropicalGeometry.Semifield T :=
+by
+  refine
+  { (inferInstance : TropicalGeometry.Semiring T) with
+    zero_ne_one := by
+      -- 目標: (0 : T) ≠ 1
+      intro h
+      -- `untrop` で WithTop ℝ の等式に落とすと，
+      -- `untrop 0 = ⊤` と `untrop 1 = 0` から `⊤ = 0` が出て矛盾
+      have h' := congrArg untrop h
+      -- h' : untrop (0:T) = untrop (1:T)
+      -- `simp` で `⊤ = 0` になる
+      have : (⊤ : WithTop ℝ) = (0 : WithTop ℝ) := by
+        simpa [untrop_zero, untrop_one] using h' 
+      -- `⊤ ≠ 0` なので矛盾させて閉じる
+      -- `cases` で不可能な等式を壊す
+      cases this
+    exists_inv := by
+      intro a ha
+      /-
+      トロピカル乗法は "加法"（+）なので，
+      逆元は「マイナス」を取ればよい：
+        a⁻¹ := trop (-(untrop a))
+      これで a * a⁻¹ = 1 を示す。
+      -/
+      refine ⟨trop (-(untrop a)), ?_⟩
+      -- ゴール: a * trop (-(untrop a)) = 1
+      rw [← untrop_inj_iff]
+      rw [untrop_one]
+      rw [untrop_mul]
+      rw [untrop_trop]
+      -- ここで目標は WithTop ℝ 上で
+      --   (untrop a) + (-(untrop a)) = 0
+      -- ただし `untrop a ≠ ⊤` (≒ a ≠ 0) を示して
+      -- `LinearOrderedAddCommGroupWithTop.add_neg_cancel_of_ne_top` を使う。
+      have aux : untrop a ≠ ⊤ := by
+        intro htop
+        -- `untrop a = ⊤` なら a = 0 になり `ha` と矛盾
+        apply ha
+        -- a = 0 を示す：
+        -- `trop_untrop` と `trop_top` を使って書き戻す
+        rw [← trop_inj_iff] at htop
+        -- htop : trop (untrop a) = trop ⊤
+        -- 右辺 `trop ⊤` はトロピカル的な 0
+        -- 左辺は `a` に戻る
+        simpa [trop_untrop, trop_top] using htop
+      -- 以上で、和と負号が打ち消しあう補題を適用
+      simpa using
+        (LinearOrderedAddCommGroupWithTop.add_neg_cancel_of_ne_top
+          (untrop a) aux)
+  }
+
+end TropicalGeometry
