@@ -621,9 +621,7 @@ structure Setoid (α : Sort u) where
 -/
 
 end FracCarrier
-end TropicalGeometry
 
-namespace TropicalGeometry
 open Classical
 --11/7
 --商集合 Q(A) を作り、要素をa/bと書けるようにする 
@@ -779,30 +777,42 @@ lemma mulRep_compat (hC : Cancellative A)
 end FracCarrier
 
 --11/14
--- Q(A) 上の加法（2段階 Quot.lift 方式） 
+-- Q(A) 上の加法
+
+/-
+Quot.lift :                      
+  (F : α → β) →                  -- 関数 F
+  (∀{x y}, r x y → F x = F y) →  -- 同値なら F の値も等しい（well-definedの証明必要）
+  Quot r → β                     -- 商 Quot r から β への関数を得る
+
+-/
+
 noncomputable def Q.add (x y : Q (A:=A) hC) : Q (A:=A) hC :=
 by
-  -- まず「右引数 q を代表に戻してから addRep を持ち上げる」関数を作る
   let addCore₁ :
+      --以下のFracCarrier Aは1つ目の引数、つまりpのことである。すなわち、pを固定したうえでのqのQ(A)→Q(A)という演算を定義することになる。
       FracCarrier A → (Q (A:=A) hC → Q (A:=A) hC) :=
+    --fun p => Quot.liftが上のFracCarrier A→ Q(A)に対応。
     fun p =>
+      --Quot.liftの中のfun q => Quot.mkがQ(A)→Q(A)に対応
       Quot.lift
         (fun q =>
           Quot.mk (FracCarrier.setoid (A:=A) hC)
             (FracCarrier.addRep (A:=A) hC p q))
         (by
-          -- q ~ q' のときも well-defined
+          -- q ~ q' のときwell-definedであることを示す。
           intro q q' hq
+          --aとbが関係rで同値ならば、同値類としてはイコールの関係になる。
           apply Quot.sound
           exact FracCarrier.addRep_compat (A:=A) hC
             (FracCarrier.rel_refl (A:=A) p) hq)
 
-  -- 次に「左引数 p を代表に戻し、addCore₁ p を選ぶ」関数を作る
   let addCore₂ : Q (A:=A) hC → (Q (A:=A) hC → Q (A:=A) hC) :=
     Quot.lift
+      --今回写像はFracCarrierからpを取れた時点であとはaddcore₁にすべて任せればよい。
       (fun p => addCore₁ p)
       (by
-        -- p ~ p' なら、関数 addCore₁ p = addCore₁ p'
+        -- p ~ p' なら、関数 addCore₁ p = addCore₁ p'を示す。
         intro p p' hp
         apply funext
         intro y
