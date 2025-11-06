@@ -632,37 +632,52 @@ section QuotBasic
 variable {A : Type u} [Semiring A]
 variable (hC : Cancellative A)
 
--- Q(A) := {(a,b) | b ≠ 0}/∼　すなわちa/bを作る。Quotはある型αと、その型の上の同値関係rを与えてrで割った商集合を作るためのコマンド。
+-- Q(A) := {(a,b) | b ≠ 0}/∼　すなわちa/bを作る。Quotはある型αと、その型の上の同値関係rを与えてrで割った商集合を作るためのコマンド。型はsetoidの二つのαで、同値関係はsetoidそのもの。
 def Q : Type u := Quot (FracCarrier.setoid (A:=A) hC)
 --Quot.{u} {α : Sort u} (r : α → α → Prop) : Sort u
 
-/-- 基本コンストラクタ：`a/b`（ただし `b ≠ 0`）を同値類に持ち上げる。 -/
+-- Q.mk a b hb と書くことでa/b の同値類が得られるようにしたい。上記のQはただの型のままなので具体的な値を表示することが出来ない。毎回Quot.mk (FracCarrier.setoid (A:=A) hC) ⟨(a,b), hb⟩と書くのは面倒なので定義する。
 def Q.mk (a b : A) (hb : b ≠ 0) : Q (A:=A) hC :=
-  Quot.mk _ ⟨(a,b), hb⟩
+  Quot.mk (FracCarrier.setoid (A:=A) hC) ⟨(a,b), hb⟩
 
-/-- 「非零の分母」を包むミニ構造体。`⟨b, hb⟩ : NZDen A`。 -/
+-- Quot.mk.{u} {α : Sort u} (r : α → α → Prop) (a : α) : Quot r
+
+
+-- 分母が0でないという情報を使いやすくするためにstructureを用意しておく。
 structure NZDen (A : Type u) [Semiring A] : Type u where
   val     : A
   ne_zero : val ≠ 0
 
 namespace Q
 
--- 記法 a / ⟨b, hb⟩ の本体：Q.mk a b hb。 
+-- NZDenで分母が０でない状態が保障されている場合にペア(同値類)を作るための定義
 def ofPair (a : A) (b : NZDen A) : Q (A:=A) hC :=
   Q.mk (A:=A) hC a b.val b.ne_zero
 
 end Q
 
 /-
-まずこのセクション内だけ有効なローカル記法を作る。その場合hCがあるので、a / b がそのまま使える。
-次に、任意の場所で使える スコープ付き記法a /[hC] bを作る。hCを明示することでエラーを減らす。
+Leanでは演算の優先順位を数値で定義している。ただ、演算を自由に追加できるように余裕をもって数値は定義されている。
+例を挙げると以下のようになる。
+べき乗：８０
+掛け算割り算：７０
+足し算引き算：６５
+イコール。大なり小なり：５０
+ある演算子を定めたときには一番右に記入された数値がその演算の優先順位となる。以下のnotationでは７１が演算の優先順位となる。
+演算の優先度を71にすることで/は
++（65）より強い → a / b + c は (a / b) + c と読まれる
+*（70）より少し強い → a / b * c は (a / b) * c と読まれる
+^（80）より弱い → a^2 / b は (a^2) / b と読まれる
+となる。
+以下ソース
+https://leanprover-community.github.io/lt2021/slides/sebastian-lean4-parsers-macros.pdf?utm_source=chatgpt.com
 -/
 
--- セクション内限定：a / b : Q(A,hC) （b : NZDen A） 
+-- セクション内限定の分数表示の導入。 a / b : Q(A,hC) （b : NZDen A） 
 local notation a:70 " / " b:71 =>
   TropicalGeometry.Q.ofPair (A:=A) hC a b
 
--- どこでも使える版：a /[hC] b （b : NZDen A） 
+-- open scoped TGFracと書けばどこでも使えるようにする：a /[hC] b （b : NZDen A） 
 scoped[TGFrac] notation a:70 " /[" hC:71 "] " b:71 =>
   TropicalGeometry.Q.ofPair (A:=_) hC a b
 
