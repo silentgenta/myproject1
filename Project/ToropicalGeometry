@@ -643,7 +643,7 @@ def Q.mk (a b : A) (hb : b ≠ 0) : Q (A:=A) hC :=
 -- Quot.mk.{u} {α : Sort u} (r : α → α → Prop) (a : α) : Quot r
 
 
--- 分母が0でないという情報を使いやすくするためにstructureを用意しておく。
+-- 分母が0でないという情報を使いやすくするためにstructureを用意しておく。(NonZeroDen)
 structure NZDen (A : Type u) [Semiring A] : Type u where
   val     : A
   ne_zero : val ≠ 0
@@ -663,7 +663,7 @@ Leanでは演算の優先順位を数値で定義している。ただ、演算�
 掛け算割り算：７０
 足し算引き算：６５
 イコール。大なり小なり：５０
-ある演算子を定めたときには一番右に記入された数値がその演算の優先順位となる。以下のnotationでは７１が演算の優先順位となる。
+ある演算子を定めたときには一番右に記入された数値がその演算の優先順位となる。以下のnotationでは７１が演算の優先順位となる。71にしたのは分子は前についた掛け算を巻き込んでほしいが、分母は後ろについた掛け算を巻き込むと事故発生になるため。
 演算の優先度を71にすることで/は
 +（65）より強い → a / b + c は (a / b) + c と読まれる
 *（70）より少し強い → a / b * c は (a / b) * c と読まれる
@@ -682,21 +682,16 @@ scoped[TGFrac] notation a:70 " /[" hC:71 "] " b:71 =>
   TropicalGeometry.Q.ofPair (A:=_) hC a b
 
 end QuotBasic
-end TropicalGeometry
 
-namespace TropicalGeometry
 open Classical
-
 
 section QAddMul
 variable {A : Type u} [Semiring A]
 variable (hC : Cancellative A)
 
--- ここでの Q は「QuotBasic」で定義したものを使う（重複定義しない）
-
 namespace FracCarrier
 
-/-- 分母同士の積は 0 にならない（Cancellative を利用） -/
+-- 分母同士の積は 0 にならないことを示す補題。（Cancellative を利用）
 lemma den_mul_ne_zero (hC : Cancellative A)
     (p q : FracCarrier A) : p.den * q.den ≠ 0 := by
   have hb := den_ne_zero (A:=A) p
@@ -704,75 +699,67 @@ lemma den_mul_ne_zero (hC : Cancellative A)
   intro h
   -- h : p.den * q.den = 0 から p.den * q.den = p.den * 0 を得る
   have h' : p.den * q.den = p.den * 0 := by
-    have hz : p.den * (0 : A) = 0 := Semiring.mul_zero (R:=A) _
+    have hz : p.den * (0 : A) = 0 := Semiring.mul_zero (R:=A) _ --_はp.den
     exact h.trans hz.symm
-  -- 左から cancel
   have : q.den = 0 :=
     TropicalGeometry.Cancellative.cancel_left (A:=A) hC hb h'
   exact hd this
 
-/-- 商和の「代表」： (a/b) + (c/d) := (ad + cb) / (bd) -/
-def addRep (hC : Cancellative A)
-    (p q : FracCarrier A) : FracCarrier A :=
+-- (a/b) + (c/d) := (ad + cb) / (bd)  FracCarrierはペアなので、⟨(分母,分子),制約条件(分母は０じゃない)⟩ という文保になる。
+def addRep (hC : Cancellative A) (p q : FracCarrier A) : FracCarrier A :=
   ⟨ (p.num * q.den + q.num * p.den, p.den * q.den)
   , den_mul_ne_zero (A:=A) hC p q ⟩
 
-/-- 商積の「代表」： (a/b) * (c/d) := (ac) / (bd) -/
+/-- (a/b) * (c/d) := (ac) / (bd) -/
 def mulRep (hC : Cancellative A)
     (p q : FracCarrier A) : FracCarrier A :=
   ⟨ (p.num * q.num, p.den * q.den)
   , den_mul_ne_zero (A:=A) hC p q ⟩
 
-/-- 加法が同値関係と両立（well-defined） -/
+-- 加法のwell-defined性 
 lemma addRep_compat (hC : Cancellative A)
     {p p' q q' : FracCarrier A}
     (hp : Rel (A:=A) p p') (hq : Rel (A:=A) q q') :
+      -- 目標は(p.num*q.den + q.num*p.den)*(p'.den*q'.den) = (p'.num*q'.den + q'.num*p'.den)*(p.den*q.den)
     Rel (A:=A) (addRep (A:=A) hC p q) (addRep (A:=A) hC p' q') := by
-  -- 目標： (p.num*q.den + q.num*p.den)*(p'.den*q'.den)
-  --     = (p'.num*q'.den + q'.num*p'.den)*(p.den*q.den)
+
   unfold Rel addRep
-  -- (x+y)*z = x*z + y*z
   have H₀ :=
     Semiring.right_distrib (R:=A)
       (p.num * q.den) (q.num * p.den) (p'.den * q'.den)
-  -- 1段目：単純分配
   calc
     (p.num * q.den + q.num * p.den) * (p'.den * q'.den)
         = (p.num * q.den) * (p'.den * q'.den)
-          + (q.num * p.den) * (p'.den * q'.den) := by
+          + (q.num * p.den) * (p'.den * q'.den) := by --分配法則の適用
             simpa using H₀
     _ = (p.num * p'.den) * (q.den * q'.den)
-        + (q.num * q'.den) * (p.den * p'.den) := by
-            -- かけ算の順序・結合の入れ替え
+        + (q.num * q'.den) * (p.den * p'.den) := by --掛け算の順番入れ替え
             have L1 :
               (p.num * q.den) * (p'.den * q'.den)
-              = (p.num * p'.den) * (q.den * q'.den) := by ac_rfl
+              = (p.num * p'.den) * (q.den * q'.den) := by ac_rfl --assocとcommを適用したうえでのrfl
             have L2 :
               (q.num * p.den) * (p'.den * q'.den)
               = (q.num * q'.den) * (p.den * p'.den) := by ac_rfl
             simp [L1, L2]
     _ = (p'.num * p.den) * (q'.den * q.den)
-        + (q'.num * q.den) * (p'.den * p.den) := by
+        + (q'.num * q.den) * (p'.den * p.den) := by --各括弧の中を入れ替える
             have hp' : p.num * p'.den = p'.num * p.den := hp
             have hq' : q.num * q'.den = q'.num * q.den := hq
-            -- 右辺のペアの順序も入れ替える
             have C1 : q.den * q'.den = q'.den * q.den := by ac_rfl
             have C2 : p.den * p'.den = p'.den * p.den := by ac_rfl
             simp [hp', hq', C1, C2]
-    _ = (p'.num * q'.den + q'.num * p'.den) * (p.den * q.den) := by
-            -- 逆向きの分配（(a*c)+(b*c) = (a+b)*c）
+    _ = (p'.num * q'.den + q'.num * p'.den) * (p.den * q.den) := by --p.den * d.denで括りだし
             have H₁ :=
               Semiring.right_distrib (R:=A)
                 (p'.num * q'.den) (q'.num * p'.den) (p.den * q.den)
-            -- 項の順序を `simp` で合わせてから対称を使う
             simpa [mul_comm, mul_left_comm, mul_assoc] using H₁.symm
 
-/-- 乗法が同値関係と両立（well-defined） -/
+-- 乗法のwell-defined性 
 lemma mulRep_compat (hC : Cancellative A)
     {p p' q q' : FracCarrier A}
     (hp : Rel (A:=A) p p') (hq : Rel (A:=A) q q') :
+      -- 目標は (p.num*q.num)*(p'.den*q'.den) = (p'.num*q'.num)*(p.den*q.den)
     Rel (A:=A) (mulRep (A:=A) hC p q) (mulRep (A:=A) hC p' q') := by
-  -- 目標： (p.num*q.num)*(p'.den*q'.den) = (p'.num*q'.num)*(p.den*q.den)
   unfold Rel mulRep
   have hp' : p.num * p'.den = p'.num * p.den := hp
   have hq' : q.num * q'.den = q'.num * q.den := hq
@@ -790,8 +777,9 @@ lemma mulRep_compat (hC : Cancellative A)
     _ = (p'.num * q'.num) * (p.den * q.den) := tR.symm
 
 end FracCarrier
+
 --11/14
-/-- Q(A) 上の加法（2段階 `Quot.lift` 方式） -/
+-- Q(A) 上の加法（2段階 Quot.lift 方式） 
 noncomputable def Q.add (x y : Q (A:=A) hC) : Q (A:=A) hC :=
 by
   -- まず「右引数 q を代表に戻してから addRep を持ち上げる」関数を作る
@@ -837,7 +825,7 @@ by
   exact addCore₂ x y
 
 
-/-- Q(A) 上の乗法（2段階 `Quot.lift` 方式） -/
+/-- Q(A) 上の乗法（2段階 Quot.lift 方式） -/
 noncomputable def Q.mul (x y : Q (A:=A) hC) : Q (A:=A) hC :=
 by
   let mulCore₁ :
