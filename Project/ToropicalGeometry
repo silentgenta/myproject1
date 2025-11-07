@@ -63,7 +63,7 @@ instance : AddCommMonoid 𝔹 where
     intro a; cases a <;> rfl
   add_comm := by
     intro a b; cases a <;> cases b <;> rfl
-  nsmul := fun n a => Nat.recOn n (0) (fun _ s => s + a)
+  nsmul := fun n a => Nat.recOn n (0 : 𝔹) (fun _ s => s + a)
   nsmul_zero := by intro x; rfl
   nsmul_succ := by intro n x; rfl
 
@@ -79,7 +79,7 @@ instance : CommMonoid 𝔹 where
     intro a; cases a <;> rfl
   mul_comm := by
     intro a b; cases a <;> cases b <;> rfl
-  npow := fun n a => Nat.recOn n (1) (fun _ s => s * a)
+  npow := fun n a => Nat.recOn n (1 : 𝔹) (fun _ s => s * a)
 
 --Def2.1.3(半環準同型の定義)
 universe u v w
@@ -661,7 +661,7 @@ Leanでは演算の優先順位を数値で定義している。ただ、演算�
 掛け算割り算：７０
 足し算引き算：６５
 イコール。大なり小なり：５０
-ある演算子を定めたときには一番右に記入された数値がその演算の優先順位となる。以下のnotationでは７１が演算の優先順位となる。71にしたのは分子は前についた掛け算を巻き込んでほしいが、分母は後ろについた掛け算を巻き込むと事故発生になるため。
+ある演算子を定めたときには一番右に記入された数値がその演算の優先順位となる。以下のnotationでは７１が演算の優先順位となる。71にしたのは分子は前についた掛xけ算を巻き込んでほしいが、分母は後ろについた掛け算を巻き込むと事故発生になるため。
 演算の優先度を71にすることで/は
 +（65）より強い → a / b + c は (a / b) + c と読まれる
 *（70）より少し強い → a / b * c は (a / b) * c と読まれる
@@ -671,7 +671,7 @@ Leanでは演算の優先順位を数値で定義している。ただ、演算�
 https://leanprover-community.github.io/lt2021/slides/sebastian-lean4-parsers-macros.pdf?utm_source=chatgpt.com
 -/
 
--- セクション内限定の分数表示の導入。 a / b : Q(A,hC) （b : NZDen A） 
+-- セクション内限定の分数表示の導入。 a / b : Q(A,hC) （b : NZDen A） _/_
 local notation a:70 " / " b:71 =>
   TropicalGeometry.Q.ofPair (A:=A) hC a b
 
@@ -708,7 +708,7 @@ def addRep (hC : Cancellative A) (p q : FracCarrier A) : FracCarrier A :=
   ⟨ (p.num * q.den + q.num * p.den, p.den * q.den)
   , den_mul_ne_zero (A:=A) hC p q ⟩
 
-/-- (a/b) * (c/d) := (ac) / (bd) -/
+-- (a/b) * (c/d) := (ac) / (bd) 
 def mulRep (hC : Cancellative A)
     (p q : FracCarrier A) : FracCarrier A :=
   ⟨ (p.num * q.num, p.den * q.den)
@@ -720,7 +720,6 @@ lemma addRep_compat (hC : Cancellative A)
     (hp : Rel (A:=A) p p') (hq : Rel (A:=A) q q') :
       -- 目標は(p.num*q.den + q.num*p.den)*(p'.den*q'.den) = (p'.num*q'.den + q'.num*p'.den)*(p.den*q.den)
     Rel (A:=A) (addRep (A:=A) hC p q) (addRep (A:=A) hC p' q') := by
-
   unfold Rel addRep
   have H₀ :=
     Semiring.right_distrib (R:=A)
@@ -756,7 +755,7 @@ lemma addRep_compat (hC : Cancellative A)
 lemma mulRep_compat (hC : Cancellative A)
     {p p' q q' : FracCarrier A}
     (hp : Rel (A:=A) p p') (hq : Rel (A:=A) q q') :
-      -- 目標は (p.num*q.num)*(p'.den*q'.den) = (p'.num*q'.num)*(p.den*q.den)
+      -- 目標は (p.num*q.num)*(p'.den*q'.den) = (p'.num*q'.num)*(p.den*q.den) (Rel)
     Rel (A:=A) (mulRep (A:=A) hC p q) (mulRep (A:=A) hC p' q') := by
   unfold Rel mulRep
   have hp' : p.num * p'.den = p'.num * p.den := hp
@@ -872,6 +871,22 @@ by
 
   exact mulCore₂ x y
 
+namespace Q
+
+variable {A : Type u} [Semiring A]
+variable (hC : Cancellative A)
+
+@[simp] lemma add_mk (p q : FracCarrier A) :
+  Q.add (A:=A) hC (Quot.mk _ p) (Quot.mk _ q)
+    = Quot.mk _ (FracCarrier.addRep (A:=A) hC p q) := rfl
+
+@[simp] lemma mul_mk (p q : FracCarrier A) :
+  Q.mul (A:=A) hC (Quot.mk _ p) (Quot.mk _ q)
+    = Quot.mk _ (FracCarrier.mulRep (A:=A) hC p q) := rfl
+
+end Q
+
+
 end QAddMul
 
 --11/21
@@ -879,23 +894,43 @@ open Classical
 
 section QSemiring
 variable {A : Type u} [Semiring A]
-variable (hC : Cancellative A) (h10 : (1 : A) ≠ 0)
+variable (hC : Cancellative A)
+variable [NeZero (1 : A)]  -- ★ ここを追加（以後 h10 は使わない）
 
--- 0,1 の代表（分母 1 を使用）
-def Q.zero : Q (A:=A) hC := Q.mk (A:=A) hC 0 1 h10
-def Q.one  : Q (A:=A) hC := Q.mk (A:=A) hC 1 1 h10
+def Q.zero : Q (A:=A) hC :=
+  Q.mk (A:=A) hC 0 1 (by simp[NeZero.ne (1 : A)])
 
--- 既に定義済みの Q.add / Q.mul を使ってインスタンス化
+def Q.one  : Q (A:=A) hC :=
+  Q.mk (A:=A) hC 1 1 (by simp[NeZero.ne (1 : A)])
+
+instance : Zero (Q (A:=A) hC) := ⟨Q.zero (A:=A) hC⟩
+instance : One  (Q (A:=A) hC) := ⟨Q.one  (A:=A) hC⟩
 
 
-instance : Zero (Q (A:=A) hC) := ⟨Q.zero (A:=A) hC h10⟩
-instance : One  (Q (A:=A) hC) := ⟨Q.one  (A:=A) hC h10⟩
+-- ★ここを差し替え
+noncomputable instance instOfNat0Q :
+    OfNat (Q (A:=A) hC) 0 where
+  ofNat := (Zero.zero : Q (A:=A) hC)     -- ← (0 : ...) と書かない
+
+noncomputable instance instOfNat1Q :
+    OfNat (Q (A:=A) hC) 1 where
+  ofNat := (One.one : Q (A:=A) hC)       -- ← (1 : ...) と書かない
+-- あるいは
+--   ofNat := Q.zero (A:=A) hC h10
+--   ofNat := Q.one  (A:=A) hC h10
+
+
+
+
+
 noncomputable instance : Add  (Q (A:=A) hC) := ⟨Q.add (A:=A) hC⟩
 noncomputable instance : Mul  (Q (A:=A) hC) := ⟨Q.mul (A:=A) hC⟩
+end QSemiring
 
 namespace FracCarrier
 
 variable {hC}
+variable {A : Type u} [Semiring A]
 
 /-- 加法の可換性（代表版） -/
 lemma addRep_comm (hC : Cancellative A)
@@ -1327,67 +1362,72 @@ end FracCarrier
 --11/21
 /-************************ ここから構造を持ち上げる ************************-/
 
--- 加法群律（加法：可換・結合・0 は単位）
-instance : AddCommMonoid (Q (A:=A) hC) where
-  add := (· + ·)
+/-- 加法群律（加法：可換・結合・0 は単位） -/
+noncomputable instance : AddCommMonoid (Q (A:=A) hC) where
+  add  := (· + ·)
   zero := (0 : Q (A:=A) hC)
+
   add_assoc := by
     intro x y z
-    -- 3 変数の `Quot` 降ろし → 代表版補題 → `Quot.sound`
-    refine Quot.induction_on x ?hx |>.trans ?_
-    · intro p; refine Quot.induction_on y ?hy
-      · intro q; refine Quot.induction_on z ?hz
-        · intro r
-          apply Quot.sound
-          exact FracCarrier.addRep_assoc (A:=A) hC p q r
-    · -- 合体
-      rfl
+    -- 代表に降ろして代表版の結合律補題を持ち上げる
+    refine Quot.induction_on x ?_
+    intro p
+    refine Quot.induction_on y ?_
+    intro q
+    refine Quot.induction_on z ?_
+    intro r
+    apply Quot.sound
+    exact FracCarrier.addRep_assoc (A:=A) hC p q r
+
   zero_add := by
     intro x
-    refine Quot.induction_on x ?hx
+    refine Quot.induction_on x ?_
     intro p
-    -- 0 + p = p
-    -- 代表 0 は (0,1)
+    -- 目標を Q.add の形に
     change
-      Quot.mk _ (FracCarrier.addRep (A:=A) hC
-                   ⟨(0,1), h10⟩ p)
+      Q.add (A:=A) hC (Q.zero (A:=A) hC h10) (Quot.mk _ p)
         = Quot.mk _ p
+    -- 左辺を代表の式に落とす
+    simp [Q.zero]  -- ← ここで lhs = Quot.mk _ (addRep ⟨(0,1),h10⟩ p)
+    -- あとは Rel で (0/1) + (a/b) ~ (a/b)
     apply Quot.sound
-    -- (0/1)+ (a/b) ~ (a/b)
-    -- これは addRep_compat に rel_refl と、(0,1) ~ (0,1) を使えばOK（自明）
-    -- 直接等式でも良いが、Rel で押す：
-    -- addRep_compat (refl, refl) では足りないので、実際の等式で証明
-    -- 0/1 + a/b = (0*b + a*1)/(1*b) ~ a/b は代表計算で分子が a*b に一致
-    -- すなわち Rel: (a*1)*(1*b) = (a*b)*(1*1)
-    -- 直接書く：
-    unfold FracCarrier.addRep FracCarrier.Rel FracCarrier.num FracCarrier.den
+    unfold FracCarrier.addRep FracCarrier.Rel
+           FracCarrier.num FracCarrier.den
     simp [mul_comm, mul_left_comm, mul_assoc,
           Semiring.zero_mul, Semiring.mul_zero,
           Semiring.one_mul]
 
   add_zero := by
     intro x
-    refine Quot.induction_on x ?hx
+    refine Quot.induction_on x ?_
     intro p
     change
-      Quot.mk _ (FracCarrier.addRep (A:=A) hC p ⟨(0,1), h10⟩)
+      Q.add (A:=A) hC (Quot.mk _ p) (Q.zero (A:=A) hC h10)
         = Quot.mk _ p
+    simp [Q.zero]
     apply Quot.sound
-    unfold FracCarrier.addRep FracCarrier.Rel FracCarrier.num FracCarrier.den
+    unfold FracCarrier.addRep FracCarrier.Rel
+           FracCarrier.num FracCarrier.den
     simp [mul_comm, mul_left_comm, mul_assoc,
           Semiring.zero_mul, Semiring.mul_zero,
           Semiring.one_mul]
+
+
   add_comm := by
     intro x y
-    refine Quot.induction_on x ?hx
-    intro p; refine Quot.induction_on y ?hy
+    refine Quot.induction_on x ?_
+    intro p
+    refine Quot.induction_on y ?_
     intro q
     apply Quot.sound
     exact FracCarrier.addRep_comm (A:=A) hC p q
-  nsmul := fun n x =>
-    Nat.recOn n (0) (fun _ s => s + x)
+
+  -- ← ここを必ず型付きゼロに
+  nsmul := fun n x => Nat.recOn n (0 : Q (A:=A) hC) (fun _ s => s + x)
   nsmul_zero := by intro x; rfl
   nsmul_succ := by intro n x; rfl
+
+
 
 -- 乗法モノイド（可換）
 instance : CommMonoid (Q (A:=A) hC) where
@@ -1430,7 +1470,7 @@ instance : CommMonoid (Q (A:=A) hC) where
     apply Quot.sound
     exact FracCarrier.mulRep_comm (A:=A) hC p q
   npow := fun n x =>
-    Nat.recOn n (1) (fun _ s => s * x)
+  Nat.recOn n (1 : Q (A:=A) hC) (fun _ s => s * x)
 
 /-- 分配・零吸収を持ち上げて Semiring インスタンス -/
 instance : Semiring (Q (A:=A) hC) where
