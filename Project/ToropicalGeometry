@@ -1691,74 +1691,65 @@ variable {A : Type u} [Semiring A]
 variable (hC : Cancellative A)
 variable [NeZero (1 : A)]
 
-/-! ここでは Q を `Quotient (FracCarrier.setoid hC)` で定義している想定 -/
-
--- 便宜上、notational にせずとも OK。既存の Q があるならそれをこの定義に合わせておく。
---abbrev Q' (A : Type u) [Semiring A] (hC : Cancellative A) :=
-  --Quotient (FracCarrier.setoid (A:=A) hC)
-
--- 0,1 が [0/1], [1/1] に簡約される補題（あなたの `Q.zero`/`Q.one` に合わせて調整）
-@[simp] lemma Q_zero_mk
-  (A) [Semiring A] (hC : Cancellative A) [NeZero (1 : A)] :
-  (0 : Q (A:=A) hC) =
-    Quotient.mk ⟨(0,1), (NeZero.ne (1:A))⟩ := rfl
-
-@[simp] lemma Q_one_mk
-  (A) [Semiring A] (hC : Cancellative A) [NeZero (1 : A)] :
-  (1 : Q (A:=A) hC) =
-    Quotient.mk ⟨(1,1), (NeZero.ne (1:A))⟩ := rfl
-
+-- Q(A) は Semifield
 noncomputable instance : Semifield (Q (A:=A) hC) :=
 { (inferInstance : Semiring (Q (A:=A) hC)) with
 
+  -- 0 ≠ 1
   zero_ne_one := by
     intro h01
-    -- 0 と 1 を「0/1」「1/1」の代表等式に直す
+    -- A 側の 1 ≠ 0
     let h10 : (1 : A) ≠ 0 := (NeZero.ne (1 : A))
+    -- 0,1 を [0/1], [1/1] の代表等式に直す
     have h01' :
-      Quotient.mk (FracCarrier.setoid (A:=A) hC) ⟨(0, 1), h10⟩
+      Quot.mk (FracCarrier.setoid (A:=A) hC) ⟨((0 : A), (1 : A)), h10⟩
         =
-      Quotient.mk (FracCarrier.setoid (A:=A) hC) ⟨(1, 1), h10⟩ := by
-      -- あなたの 0,1 の定義に合わせてここだけ調整（この行は従来通りでOK）
+      Quot.mk (FracCarrier.setoid (A:=A) hC) ⟨((1 : A), (1 : A)), h10⟩ := by
+      -- ↓ ここの `Q.zero, Q.one` はあなたの 0,1 の定義名に合わせてください
       simpa [Q.zero, Q.one] using h01
 
-    -- ★ ここを `Quotient.exact` にする（`Quot.exact` は使わない）
+    -- 等式 ⇒ Setoid 関係（`Quotient.exact` は `Quotient` 用）
     have hRel :
         FracCarrier.Rel (A:=A)
-          ⟨(0, 1), h10⟩
-          ⟨(1, 1), h10⟩ :=
+          ⟨((0 : A), (1 : A)), h10⟩
+          ⟨((1 : A), (1 : A)), h10⟩ :=
       Quotient.exact h01'
 
     -- Rel を展開して 0 = 1 を導く
     dsimp [FracCarrier.Rel, FracCarrier.num, FracCarrier.den] at hRel
     have : (0 : A) = 1 := by
-      simpa [mul_one, one_mul] using hRel
+      -- hRel は 0*1 = 1*1
+      simp at hRel
     exact h10 this.symm,
 
-
+  -- 非零に逆
   exists_inv := by
     intro x hx
     let h10 : (1 : A) ≠ 0 := (NeZero.ne (1 : A))
-    -- 分子が非零な代表をとる（ここは従来通り）
+    -- 分子が 0 でない代表を取る（あなたの補題をそのまま使用）
     rcases nonzero_num_of_ne_zero (A:=A) (hC:=hC) hx with ⟨p, rfl, hp⟩
     -- 逆候補は [p.den / p.num]
     refine ⟨
-      Quotient.mk (FracCarrier.setoid (A:=A) hC) ⟨(p.den, p.num), hp⟩,
+      Quot.mk (FracCarrier.setoid (A:=A) hC) ⟨(p.den, p.num), hp⟩,
       ?_⟩
+
     -- [p] * [p.den/p.num] = 1 を示す
     change
-      Quotient.mk (FracCarrier.setoid (A:=A) hC)
+      Quot.mk (FracCarrier.setoid (A:=A) hC)
         (FracCarrier.mulRep (A:=A) hC p ⟨(p.den, p.num), hp⟩)
         =
-      Quotient.mk (FracCarrier.setoid (A:=A) hC) ⟨(1, 1), h10⟩
-    -- Setoid の関係に落とす（★ `Quotient.sound` を使う）
-    apply Quotient.sound
-    -- 定義を開いて可換・結合法則で潰す
-    dsimp [FracCarrier.mulRep, FracCarrier.Rel,
-           FracCarrier.num, FracCarrier.den]
-    simp [mul_comm, mul_left_comm, mul_assoc]
+      Quot.mk (FracCarrier.setoid (A:=A) hC) ⟨((1 : A), (1 : A)), h10⟩
 
+    -- Setoid の関係に落とす
+    apply Quotient.sound
+    -- Rel を「分子×相手の分母 = 相手の分子×分母」の等式に書き換える
+    -- ここでは左 = ⟨(p.num * p.den, p.den * p.num)⟩, 右 = ⟨(1,1)⟩ なので
+    -- (p.num*p.den)*1 = 1*(p.den*p.num) を示せばよい
+    change (p.num * p.den) * (1 : A) = (1 : A) * (p.den * p.num)
+    simp[mul_comm]
 }
+
+
 
 
 
