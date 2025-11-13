@@ -1645,24 +1645,42 @@ end FracCarrier
 
 
 
+open Classical
+
 /-- 非零元は分子が非零な代表を持つ -/
 lemma nonzero_num_of_ne_zero
-    {x : Q (A:=A) hC} (hx : x ≠ 0) :
+    {A : Type u} [TropicalGeometry.Semiring A]
+    (hC : Cancellative A) [NeZero (1 : A)]
+    {x : Q (A:=A) hC} (hx : x ≠ (0 : Q (A:=A) hC)) :
     ∃ p : FracCarrier A, Quot.mk _ p = x ∧ p.num ≠ 0 := by
-  -- x を代表 p に降ろす。もし p.num = 0 なら x = 0 に矛盾。
-  refine Quot.induction_on x (fun p => ?_) 
-  intro p
-  by_cases hp : p.num = 0
-  · -- この場合、[p] = 0 になってしまう
-    have : Quot.mk _ p = (0 : Q (A:=A) hC) := by
-      -- 0 は ⟨(0,1),h10⟩ の同値類
-      change Quot.mk _ p = Quot.mk _ ⟨(0,1), h10⟩
-      apply Quot.sound
-      -- Rel: p.num*1 = 0 * p.den
-      unfold FracCarrier.Rel FracCarrier.num FracCarrier.den
-      simp [hp, Semiring.one_mul, Semiring.zero_mul]
-    exact (hx (by simpa using this)).elim
-  · exact ⟨p, rfl, hp⟩
+  rcases Quot.exists_rep x with ⟨p, rfl⟩
+  by_cases hpn : p.num = 0
+  · rcases p with ⟨⟨a, b⟩, hb⟩
+    have ha : a = 0 := by
+      dsimp [FracCarrier.num] at hpn; exact hpn
+    -- ★ ここを `.Rel` ではなく `.R` にし、`change` で `FracCarrier.Rel` に落とす
+    have hRel :
+        (FracCarrier.setoid (A:=A) hC).r
+          ⟨(a, b), hb⟩
+          ⟨(0, 1), (NeZero.ne (1 : A))⟩ := by
+      change FracCarrier.Rel (A:=A)
+               ⟨(a, b), hb⟩ ⟨(0, 1), NeZero.ne (1 : A)⟩
+      -- 定義展開して両辺 0 に落とす
+      dsimp [FracCarrier.Rel, FracCarrier.num, FracCarrier.den]
+      calc
+        a * (1 : A) = (0 : A) * (1 : A) := by rw [ha]
+        _ = (0 : A) := TropicalGeometry.Semiring.zero_mul (R:=A) (1 : A)
+        _ = (0 : A) * b := by
+          symm; exact TropicalGeometry.Semiring.zero_mul (R:=A) b
+    have hEq : (Quot.mk _ ⟨(a, b), hb⟩ : Q (A:=A) hC)
+             = (0 : Q (A:=A) hC) := Quot.sound hRel
+    exact (hx hEq).elim
+  · exact ⟨p, rfl, hpn⟩
+
+
+
+
+
 
 /-- Q(A) は Semifield：0≠1 と「非零に逆」 -/
 noncomputable instance : Semifield (Q (A:=A) hC) where
@@ -1716,7 +1734,7 @@ noncomputable instance : Semifield (Q (A:=A) hC) where
     simpa [h1, h2, Semiring.one_mul,
            mul_comm, mul_left_comm, mul_assoc]
 
-end QSemiring
+
 
 --11/28
 
