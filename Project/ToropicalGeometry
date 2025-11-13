@@ -1599,23 +1599,51 @@ end QSemiring
 
 --逆元の存在：Semifield 仕上げ 
 
--- 「0 でない元 x は、何らかの代表 p で p.num ≠ 0」を使って逆を立てる。
--- x = [a/b]（b≠0）で a ≠ 0 なら逆は [b/a]。
--- x = 0 のとき（つまり任意代表が a=0）以外はこれで十分。
--- そこでまず、0 判定の補題を作る。
-
 namespace FracCarrier
 
-/- [a/b] = 0 であることの代表版判定：a = 0 -/
-lemma zero_iff_num_eq_zero (hC : Cancellative A)
+/-- 代表版の 0 判定： `[a/b] = 0` ↔ `a = 0` 。 -/
+lemma zero_iff_num_eq_zero
+    {A : Type u} [TropicalGeometry.Semiring A]
+     (h10 : (1 : A) ≠ 0)
     (p : FracCarrier A) :
-    FracCarrier.Rel (A:=A) p ⟨(0,1), by exact (show (1:A) ≠ 0 from ?_)⟩
-      ↔ p.num = 0 := by
-  -- ここでは `?_.` に `h10` を入れたいので、外側で使う形に書き換えます。
-  -- 実運用では直接使わず、下の `nonzero_num_of_ne_zero` で `h10` を受け渡します。
-  admit
+    FracCarrier.Rel (A:=A) p ⟨(0, 1), h10⟩ ↔ p.num = 0 := by
+  rcases p with ⟨⟨a, b⟩, hb⟩
+  constructor
+  · -- (→)  a*1 = 0*b ⇒ a = 0
+    intro h
+    dsimp [FracCarrier.Rel, FracCarrier.num, FracCarrier.den] at h
+    -- 右辺 0*b は 0
+    have hz : (0 : A) * b = 0 :=
+      TropicalGeometry.Semiring.zero_mul (R:=A) b
+    have h1 : a * (1 : A) = 0 := by
+      rw [hz] at h; exact h
+    -- a*1 = 0 から a = 0
+    have hm : a * (1 : A) = a := mul_one a
+    have h2 := h1
+    rw [hm] at h2
+    exact h2
+
+  · -- (←)  a = 0 ⇒ a*1 = 0*b
+    intro hnum
+    -- まず num を a に展開してから書き換える
+    dsimp [FracCarrier.num] at hnum
+    dsimp [FracCarrier.Rel, FracCarrier.num, FracCarrier.den]
+    -- a を 0 に置換
+    rw [hnum]
+    -- 目標は 0*1 = 0*b
+    have hL : (0 : A) * (1 : A) = 0 :=
+      TropicalGeometry.Semiring.zero_mul (R:=A) (1 : A)
+    have hR : (0 : A) * b = 0 :=
+      TropicalGeometry.Semiring.zero_mul (R:=A) b
+    -- 両辺を 0 に潰す
+    rw [hL, hR]
 
 end FracCarrier
+
+
+
+
+
 
 /-- 非零元は分子が非零な代表を持つ -/
 lemma nonzero_num_of_ne_zero
