@@ -631,7 +631,7 @@ variable {A : Type u} [Semiring A]
 variable (hC : Cancellative A)
 
 -- Q(A) := {(a,b) | b ≠ 0}/∼　すなわちa/bを作る。Quotはある型αと、その型の上の同値関係rを与えてrで割った商集合を作るためのコマンド。型はsetoidの二つのαで、同値関係はsetoidそのもの。
-def Q : Type u := Quot (FracCarrier.setoid (A:=A) hC)
+def Q : Type u := Quotient (FracCarrier.setoid (A:=A) hC)
 --Quot.{u} {α : Sort u} (r : α → α → Prop) : Sort u
 
 -- Q.mk a b hb と書くことでa/b の同値類が得られるようにしたい。上記のQはただの型のままなので具体的な値を表示することが出来ない。毎回Quot.mk (FracCarrier.setoid (A:=A) hC) ⟨(a,b), hb⟩と書くのは面倒なので定義する。
@@ -1682,57 +1682,75 @@ lemma nonzero_num_of_ne_zero
 
 
 
+
+variable {A : Type u} [Semiring A]
+variable (hC : Cancellative A)
+variable [NeZero (1 : A)]
+
 /-- Q(A) は Semifield：0≠1 と「非零に逆」 -/
-noncomputable instance : Semifield (Q (A:=A) hC) where
-  -- 既に Semiring インスタンスはある
+noncomputable instance : Semifield (Q (A:=A) hC) :=
+{ (inferInstance : Semiring (Q (A:=A) hC)) with
+
+  -- 0 ≠ 1
   zero_ne_one := by
-    -- 0 ≠ 1 は代表 0/1 と 1/1 が異なることに帰着（h10 を使用）
-    -- Rel で等しいと仮定すると 0=1 に矛盾
     intro h01
-    -- 0 = 1 なら、その代表が Rel で等しい
-    -- (0*1) * (1*1) = (1*1) * (0*1) を見ると 0=1 を強いる
+    -- 0 と 1 を「0/1」「1/1」の代表等式に書き換える
+    let h10 : (1 : A) ≠ 0 := (NeZero.ne (1 : A))
+    have h01' :
+      Quot.mk (FracCarrier.setoid (A:=A) hC) ⟨(0, 1), h10⟩
+        =
+      Quot.mk (FracCarrier.setoid (A:=A) hC) ⟨(1, 1), h10⟩ := by
+      -- あなたの 0,1 の定義名に合わせてここだけ直してください
+      -- 例：`simp [Q.zero, Q.one]` など
+      simpa [Q.zero, Q.one] using h01
+
+    -- 等式 ⇒ 関係（Rel）: `Quot.eq.mp` を使う（Lean4で安全）
+    have hRel :
+        FracCarrier.Rel (A:=A)
+          ⟨(0, 1), h10⟩
+          ⟨(1, 1), h10⟩ :=
+      (Quot.eq.mp h01')   -- ここが `Quot.exact` の代替
+
+    -- Rel を展開して 0 = 1 を出す
+    dsimp [FracCarrier.Rel, FracCarrier.num, FracCarrier.den] at hRel
     have : (0 : A) = 1 := by
-      -- `Quot.eqv_iff_eq` は使えないので、等しいと仮定したら Rel が成り立つはず
-      -- ここは手短に：もし 0=1 なら h10 に反する、という形に変換
-      -- 実際には 0=1 を導く代表計算でも OK
-      -- 簡略化のために反証法：h10 : 1 ≠ 0
-      exact (h10 (by simpa))
-    -- 矛盾
-    exact (by have := this.symm; simpa using this)
+      -- hRel は 0*1 = 1*1
+      simpa [mul_one, one_mul] using hRel
+    exact h10 this.symm,
+
+  -- 非零に逆
   exists_inv := by
     intro x hx
-    -- 非零なら代表 p で p.num ≠ 0 が取れる
-    rcases nonzero_num_of_ne_zero (A:=A) hC h10 hx with ⟨p, rfl, hp⟩
-    -- 逆は [p.den/p.num]
+    let h10 : (1 : A) ≠ 0 := (NeZero.ne (1 : A))
+    -- 分子≠0の代表をとる
+    rcases nonzero_num_of_ne_zero (A:=A) (hC:=hC) hx with ⟨p, rfl, hp⟩
+    -- 候補は [p.den / p.num]
     refine ⟨
-      Quot.mk _ ⟨(p.den, p.num), hp⟩,
-      ?goal
-    ⟩
-    -- 証明： [p]*[p.den/p.num] = 1
-    -- 代表計算： (p.num/p.den) * (p.den/p.num) = (p.num*p.den)/(p.den*p.num) ~ 1/1
+      Quot.mk (FracCarrier.setoid (A:=A) hC) ⟨(p.den, p.num), hp⟩,
+      ?_⟩
+    -- [p] * [p.den/p.num] = 1 を示す
     change
-      Quot.mk _ (FracCarrier.mulRep (A:=A) hC
-                  p ⟨(p.den, p.num), hp⟩)
-        = (1 : Q (A:=A) hC)
-    change
-      Quot.mk _ (FracCarrier.mulRep (A:=A) hC
-                  p ⟨(p.den, p.num), hp⟩)
-        = Quot.mk _ ⟨(1,1), h10⟩
+      Quot.mk (FracCarrier.setoid (A:=A) hC)
+        (FracCarrier.mulRep (A:=A) hC p ⟨(p.den, p.num), hp⟩)
+      =
+      Quot.mk (FracCarrier.setoid (A:=A) hC) ⟨(1, 1), h10⟩
+    -- Setoid の関係へ
     apply Quot.sound
-    -- Rel の式に落とす
-    unfold FracCarrier.mulRep FracCarrier.Rel
-           FracCarrier.num FracCarrier.den
-    -- (p.num*p.den) * (1*1) = (1*p.num) * (p.den*p.num)
-    -- 可換結合で `ac_rfl`
-    have h1 : (p.num * p.den) * (1 * 1)
-            = p.num * p.den := by
-      simp [Semiring.one_mul, mul_comm, mul_left_comm, mul_assoc]
-    have h2 : (1 * p.num) * (p.den * p.num)
-            = p.num * p.den * p.num := by
-      simp [Semiring.one_mul, mul_comm, mul_left_comm, mul_assoc]
-    -- 左右とも p.num*p.den*p.num に落ちる
-    simpa [h1, h2, Semiring.one_mul,
-           mul_comm, mul_left_comm, mul_assoc]
+    -- 定義展開して等式に帰着
+    dsimp [FracCarrier.mulRep, FracCarrier.Rel,
+           FracCarrier.num, FracCarrier.den]
+    -- あとは可換則＋単位元で機械的に潰す
+    simp [mul_comm, one_mul, mul_one]
+}
+
+
+
+
+
+
+
+
+
 
 
 
