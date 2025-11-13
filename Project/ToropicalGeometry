@@ -781,7 +781,7 @@ end FracCarrier
 /-
 Quot.lift :                      
   (F : α → β) →                  -- 関数 F
-  (∀{x y}, r x y → F x = F y) →  -- 同値なら F の値も等しい（well-definedの証明必要）
+  (∀{x y}, r x y → F x = F y) →  -- rが同値なら F の値も等しい（well-definedの証明必要）
   Quot r → β                     -- 商 Quot r から β への関数を得る
 
 -/
@@ -793,8 +793,11 @@ by
       FracCarrier A → (Q (A:=A) hC → Q (A:=A) hC) :=
     --fun p => Quot.liftが上のFracCarrier A→ Q(A)に対応。
     fun p =>
-      --Quot.liftの中のfun q => Quot.mkがQ(A)→Q(A)に対応
+      --Quot.liftの中のfun q => Quot.mkがQ(A)→Q(A)に対応。
+      --関数Ｆと同値～について、a～b → F(a)=F(b)が成り立つなら、F(c)=F([c])が成り立つというのがQuot.lift
       Quot.lift
+         --qが与えられたら既に存在するpを持ってきてaddrepで足し算した後にsetoidで同値類にする。
+         --すなわち、 以下のfunがやっていることは q → [p + q]である。
         (fun q =>
           Quot.mk (FracCarrier.setoid (A:=A) hC)
             (FracCarrier.addRep (A:=A) hC p q))
@@ -815,17 +818,16 @@ by
         intro p p' hp
         apply funext
         intro y
-        -- y も代表に戻して同値を作る
+        -- yが商の元なので代表に戻してあげる
         refine Quot.induction_on y ?_
         intro q
-        -- 目標を書き換え（2つの mk の等しさを示せばよい）
+        -- 目標を書き換えるaddcore₁p [q]＝[p+q]なので、次の2つのmkの等しさを示せばよい
         change
           Quot.mk (FracCarrier.setoid (A:=A) hC)
               (FracCarrier.addRep (A:=A) hC p  q)
             =
           Quot.mk (FracCarrier.setoid (A:=A) hC)
               (FracCarrier.addRep (A:=A) hC p' q)
-        -- これは addRep_compat の (hp, refl) で成立
         apply Quot.sound
         exact FracCarrier.addRep_compat (A:=A) hC hp
           (FracCarrier.rel_refl (A:=A) q))
@@ -834,7 +836,7 @@ by
   exact addCore₂ x y
 
 
-/-- Q(A) 上の乗法（2段階 Quot.lift 方式） -/
+-- Q(A) 上の乗法 
 noncomputable def Q.mul (x y : Q (A:=A) hC) : Q (A:=A) hC :=
 by
   let mulCore₁ :
@@ -876,10 +878,12 @@ namespace Q
 variable {A : Type u} [Semiring A]
 variable (hC : Cancellative A)
 
+--[p]+[q]=[p+q]
 @[simp] lemma add_mk (p q : FracCarrier A) :
   Q.add (A:=A) hC (Quot.mk _ p) (Quot.mk _ q)
     = Quot.mk _ (FracCarrier.addRep (A:=A) hC p q) := rfl
 
+--[p][q]=[pq]
 @[simp] lemma mul_mk (p q : FracCarrier A) :
   Q.mul (A:=A) hC (Quot.mk _ p) (Quot.mk _ q)
     = Quot.mk _ (FracCarrier.mulRep (A:=A) hC p q) := rfl
@@ -895,33 +899,30 @@ open Classical
 section QSemiring
 variable {A : Type u} [Semiring A]
 variable (hC : Cancellative A)
-variable [NeZero (1 : A)]  -- ★ ここを追加（以後 h10 は使わない）
+variable [NeZero (1 : A)]  --1≠0 
 
+--Q(a)の0を0/1と定義。(分母が０でない証明付きで)
 def Q.zero : Q (A:=A) hC :=
   Q.mk (A:=A) hC 0 1 (by simp[NeZero.ne (1 : A)])
 
+--Q(a)の1を1/1と定義。(分母が０でない証明付きで)
 def Q.one  : Q (A:=A) hC :=
   Q.mk (A:=A) hC 1 1 (by simp[NeZero.ne (1 : A)])
 
+--Q(A)の0と1を使いたい際にバグが出やすいのでinstanceとして追加
 instance : Zero (Q (A:=A) hC) := ⟨Q.zero (A:=A) hC⟩
 instance : One  (Q (A:=A) hC) := ⟨Q.one  (A:=A) hC⟩
 
-
--- ★ここを差し替え
+--OfNat A nはnをAの要素として読みなさいという指示を与えるinstance
+--(0 : ...)や(1 : ...)バグが発生しやすいのでそれを回避するため。
+--Zeroが存在するので、Q(A)の０をzeroで呼び出すという内容を以下のコードでは述べている。
 noncomputable instance instOfNat0Q :
     OfNat (Q (A:=A) hC) 0 where
-  ofNat := (Zero.zero : Q (A:=A) hC)     -- ← (0 : ...) と書かない
+  ofNat := (Zero.zero : Q (A:=A) hC)
 
 noncomputable instance instOfNat1Q :
     OfNat (Q (A:=A) hC) 1 where
-  ofNat := (One.one : Q (A:=A) hC)       -- ← (1 : ...) と書かない
--- あるいは
---   ofNat := Q.zero (A:=A) hC h10
---   ofNat := Q.one  (A:=A) hC h10
-
-
-
-
+  ofNat := (One.one : Q (A:=A) hC)
 
 noncomputable instance : Add  (Q (A:=A) hC) := ⟨Q.add (A:=A) hC⟩
 noncomputable instance : Mul  (Q (A:=A) hC) := ⟨Q.mul (A:=A) hC⟩
