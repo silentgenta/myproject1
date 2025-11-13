@@ -1514,7 +1514,7 @@ noncomputable instance : CommMonoid (Q (A:=A) hC) where
 
 end QCommMonoid
 
-
+--Q(A)は半環である
 section QSemiring
 variable {A : Type u} [Semiring A]
 variable (hC : Cancellative A)
@@ -1544,6 +1544,9 @@ noncomputable instance : Semiring (Q (A:=A) hC) :=
            FracCarrier.num, FracCarrier.den]
     -- ここが未解決だった箇所：両辺とも 0 に落ちる
     simp  -- （必要なら simp [mul_zero, zero_mul] でも可）
+    have hR : (0 : A) * b = 0 := TropicalGeometry.Semiring.zero_mul (R:=A) b
+    have hL : a * (0 : A) = 0 := TropicalGeometry.Semiring.mul_zero (R:=A) a
+    simp [hL, hR]
 
   -- 0 * p = 0
   zero_mul := by
@@ -1592,20 +1595,6 @@ noncomputable instance : Semiring (Q (A:=A) hC) :=
     exact FracCarrier.right_distrib_rep (A:=A) hC p q r
 }
 end QSemiring
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 --逆元の存在：Semifield 仕上げ 
