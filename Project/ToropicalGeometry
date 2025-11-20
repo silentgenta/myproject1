@@ -1632,9 +1632,9 @@ noncomputable instance : Semifield (Q (A:=A) hC) :=
 }
 
 
---11/28
+--12/5
 
--- A の元 a を既約分数 a/1 に埋め込む写像 f : A → Q(A)
+-- A の元 a を既約分数 a/1 に埋め込む写像 f : A → Q(A)が単射でかつ半環準同型
 
 
 section
@@ -1918,7 +1918,7 @@ notation "TropLaurent[" n "]" => TropLaurent n
 open Classical
 open scoped BigOperators
 
-namespace TropicalGeometry
+
 
 /-- n 変数トロピカル多項式の評価点（T^n）を Lean 的に「Fin n → T」とみなす -/
 abbrev TropPoint (n : ℕ) := Fin n → T
@@ -2127,12 +2127,12 @@ noncomputable abbrev TropLaurentFunc (n : ℕ) :=
   （有限個の max of affine-linear forms）から証明できる。
 -/
 
-end TropicalGeometry
+
 /-
 ここから：T, T[X], T[X^{±}] が消去的であることに関するコード
 -/
 
-namespace TropicalGeometry
+
 
 -- まず T が消去的であることを示す
 -- T = WithBot ℝ を max-plus (⊕=max, ⊙=+) で半環化している前提
@@ -2296,7 +2296,7 @@ axiom cancellative_TropPoly1 :
 axiom cancellative_TropLaurent1 :
   Cancellative (TropLaurent (n:=1))
 
-end TropicalGeometry
+
 /-
   §2.2 イデアル・合同・核合同・準同型定理まわり
   ここでは既に
@@ -2305,7 +2305,7 @@ end TropicalGeometry
   （可換半環＝加法可換モノイド＋乗法可換モノイド＋分配＋0吸収）
 -/
 
-namespace TropicalGeometry
+
 
 universe u v
 
@@ -2788,7 +2788,7 @@ by
 
 end SemiringIso
 
-end TropicalGeometry
+
 
 
 #min_imports
