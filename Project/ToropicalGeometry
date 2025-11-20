@@ -892,7 +892,7 @@ end Q
 
 end QAddMul
 
---11/21
+
 open Classical
 
 section QSemiring
@@ -927,6 +927,7 @@ noncomputable instance : Add  (Q (A:=A) hC) := ⟨Q.add (A:=A) hC⟩
 noncomputable instance : Mul  (Q (A:=A) hC) := ⟨Q.mul (A:=A) hC⟩
 end QSemiring
 
+--11/21
 namespace FracCarrier
 
 variable {hC}
@@ -936,18 +937,14 @@ variable {A : Type u} [Semiring A]
 lemma addRep_comm (hC : Cancellative A)
     (p q : FracCarrier A) :
     Rel (A:=A) (addRep (A:=A) hC p q) (addRep (A:=A) hC q p) := by
-  -- Rel と addRep, num, den を展開して目標式を素の等式に落とす
   unfold Rel addRep num den
   -- 目標は
   --(p.num*q.den + q.num*p.den) * (q.den*p.den) = (q.num*p.den + p.num*q.den) * (p.den*q.den)
-  -- 和の順序と分母側の積の順序を入れ替えるだけで一致
   calc
     (p.num * q.den + q.num * p.den) * (q.den * p.den)
         = (q.num * p.den + p.num * q.den) * (q.den * p.den) := by
-          -- 和の順序だけを可換法則で入れ替え
           simp [add_comm]
     _   = (q.num * p.den + p.num * q.den) * (p.den * q.den) := by
-          -- 分母側の積の順序を可換法則で入れ替え
           ac_rfl
 
 -- 加法の結合性
@@ -957,28 +954,34 @@ lemma addRep_assoc (hC : Cancellative A)
       (addRep (A:=A) hC (addRep (A:=A) hC p q) r)
       (addRep (A:=A) hC p (addRep (A:=A) hC q r)) := by
   unfold Rel addRep
-  set a := p.num; set b := p.den
-  set c := q.num; set d := q.den
-  set e := r.num; set f := r.den
+  --見通しをよくしたいので即効性のあるset
+  set a := p.num 
+  set b := p.den
+  set c := q.num
+  set d := q.den
+  set e := r.num
+  set f := r.den
+  --使いどころを選んで適用したいのでlet
   let k₁ := b * (d * f)
   let k₂ := (b * d) * f
-
-  /- 左辺を 3 項に -/
+  --証明の本題
+  --左辺について
+  --k₁の分配
   have HL1 :
       ((a*d + c*b) * f + e * (b*d)) * k₁
         = ((a*d + c*b) * f) * k₁ + (e * (b*d)) * k₁ := by
     simpa using
       (Semiring.right_distrib (R:=A) ((a*d + c*b) * f) (e * (b*d)) k₁)
 
-  -- ((a*d + c*b) * f) * k₁ = (a*d)*(f*k₁) + (c*b)*(f*k₁)
+  --分配測 ((a*d + c*b) * f) * k₁ = (a*d)*(f*k₁) + (c*b)*(f*k₁)
   have HL2 :
       ((a*d + c*b) * f) * k₁
         = (a*d) * (f * k₁) + (c*b) * (f * k₁) := by
-    -- ((x+y)*f)*k₁ = (x+y)*(f*k₁) にしてから right_distrib
     have := Semiring.right_distrib (R:=A) (a*d) (c*b) (f * k₁)
+    --mul_assocで((x+y)*f)*k₁ = (x+y)*(f*k₁) の形へ結合則で並び替えてからsimpを適用
     simpa [mul_assoc] using this
 
-  -- 左辺まとめ
+  --HL1とHL2を統合
   have HL :
       ((a*d + c*b) * f + e * (b*d)) * k₁
         = a*d*f*k₁ + c*b*f*k₁ + e*(b*d)*k₁ := by
@@ -989,21 +992,22 @@ lemma addRep_assoc (hC : Cancellative A)
             simp [HL2]
       _ = a*d*f*k₁ + c*b*f*k₁ + e*(b*d)*k₁ := by
             simp [mul_assoc]
-
-  /- 右辺を 3 項に -/
+  --右辺について
+  --k₂の分配
   have HR1 :
       (a * (d*f) + (c*f + e*d) * b) * k₂
         = (a * (d*f)) * k₂ + ((c*f + e*d) * b) * k₂ := by
     simpa using
       (Semiring.right_distrib (R:=A) (a * (d*f)) ((c*f + e*d) * b) k₂)
 
-  -- ((c*f + e*d) * b) * k₂ = (c*f)*(b*k₂) + (e*d)*(b*k₂)
-  have HR2' :
+  --分配測((c*f + e*d) * b) * k₂ = (c*f)*(b*k₂) + (e*d)*(b*k₂)
+  have HR2 :
       ((c*f + e*d) * b) * k₂
         = (c*f) * (b * k₂) + (e*d) * (b * k₂) := by
     have := Semiring.right_distrib (R:=A) (c*f) (e*d) (b * k₂)
     simpa [mul_assoc] using this
 
+  --HR1とHR2を統合
   have HR :
       (a * (d*f) + (c*f + e*d) * b) * k₂
         = a * (d*f) * k₂ + (c*f) * b * k₂ + (e*d) * b * k₂ := by
@@ -1011,30 +1015,19 @@ lemma addRep_assoc (hC : Cancellative A)
       (a * (d*f) + (c*f + e*d) * b) * k₂
           = (a * (d*f)) * k₂ + ((c*f + e*d) * b) * k₂ := HR1
       _ = (a * (d*f)) * k₂ + ((c*f) * (b * k₂) + (e*d) * (b * k₂)) := by
-            simp [HR2']
+            simp [HR2]
       _ = a * (d*f) * k₂ + (c*f) * b * k₂ + (e*d) * b * k₂ := by
             simp [mul_assoc, add_assoc]
 
-  -- k₁ と k₂ は結合法で同じ（←ここを修正）
+  -- k₁ と k₂ は結合測が成り立つときイコールとなる
   have k_same : k₁ = k₂ := by
-    -- k₁ = b * (d * f)
-    -- k₂ = (b * d) * f
-    -- mul_assoc b d f : (b * d) * f = b * (d * f)
-    -- simp で両辺を同じ形に正規化してくれる
     simp [k₁, k₂, mul_assoc]
 
-  -- 3項の和の並び替え（括弧外しを含む）
+  -- 3項の和の並び替え（括弧の付け替えを含む）
   have align :
       a*d*f*k₁ + c*b*f*k₁ + e*(b*d)*k₁
         = a*(d*f)*k₂ + (c*f)*b*k₂ + (e*d)*b*k₂ := by 
         simp [k_same, mul_assoc, mul_comm, mul_left_comm]
-    -- まず k₁ を k₂ に置換してから ac で並べ替え
-    /-simpa [k_same, mul_assoc, mul_comm, mul_left_comm] using
-      (by
-         have : a*d*f*k₂ + c*b*f*k₂ + e*(b*d)*k₂
-              = a*(d*f)*k₂ + (c*f)*b*k₂ + (e*d)*b*k₂ := by
-            ac_rfl
-         exact this)-/
 
   -- まとめ
   calc
@@ -1044,16 +1037,11 @@ lemma addRep_assoc (hC : Cancellative A)
     _   = (a * (d*f) + (c*f + e*d) * b) * k₂ := HR.symm
 
 
-
-
-
 -- 乗法の可換性
 lemma mulRep_comm (hC : Cancellative A)
     (p q : FracCarrier A) :
     Rel (A:=A) (mulRep (A:=A) hC p q) (mulRep (A:=A) hC q p) := by
   unfold Rel mulRep
-  -- (p.num*q.num)*(p.den*q.den) と (q.num*p.num)*(q.den*p.den)
-  -- は ac で一致
   simp [mul_comm,  mul_assoc]
 
 -- 乗法の結合性
@@ -1062,126 +1050,76 @@ lemma mulRep_assoc (hC : Cancellative A)
     Rel (A:=A) (mulRep (A:=A) hC (mulRep (A:=A) hC p q) r)
                  (mulRep (A:=A) hC p (mulRep (A:=A) hC q r)) := by
   unfold Rel mulRep
-  -- どちらも分子 p.num*q.num*r.num，分母 p.den*q.den*r.den （順序違い）になるので ac
   simp [mul_comm,  mul_assoc]
 
--- 左分配則
+-- 左分配則(p(q+r)=pq+pr)
 lemma left_distrib_rep (hC : Cancellative A)
     (p q r : FracCarrier A) :
     Rel (A:=A)
       (mulRep (A:=A) hC p (addRep (A:=A) hC q r))
       (addRep (A:=A) hC (mulRep (A:=A) hC p q) (mulRep (A:=A) hC p r)) := by
-  -- まず p,q,r の中身を素の変数名にばらす
+  -- まず p,q,r の中身を分母、分子、分母≠0条件の3つにバラす
   rcases p with ⟨⟨pn, pd⟩, hp0⟩
   rcases q with ⟨⟨qn, qd⟩, hq0⟩
   rcases r with ⟨⟨rn, rd⟩, hr0⟩
 
-  -- Rel, addRep, mulRep を展開して、A 上の等式に落とす
   unfold Rel addRep mulRep
-  -- FracCarrier.num / den はただの fst / snd
+  --例えばnum(pn,pd)はpnのことである。simpで見やすくする。
   simp [FracCarrier.num, FracCarrier.den]
 
-  /-
-  いまゴール（≒タクティク状態のターゲット）は：
-    pn * ((qn * rd + rn * qd) * (pd * (qd * (pd * rd))))
-      =
-    (pn * (qn * (pd * rd)) + pn * (rn * (pd * qd)))
-      * (pd * (qd * rd))
-
-  これを2段ロケットで示す：
-   (1) 左辺 = pn * (qn*rd + rn*qd) * X
-   (2) その X 版から最終右辺へ
-  を合成する。
-  -/
-
-  -- まず分母側の大きい積を名前付けしておく
+  -- まず分母の積に名前付けしておく
   set X : A := pd * qd * (pd * rd) with hX
   set Y : A := pd * (qd * rd) with hY
 
-  -- (1) 左辺を pn * (qn*rd + rn*qd) * X という「標準形」に寄せる
+  -- (1) 左辺を pn * (qn*rd + rn*qd) * X という形にする
   have lhs_reassoc :
       pn * ((qn * rd + rn * qd) * (pd * (qd * (pd * rd))))
         =
       pn * (qn * rd + rn * qd) * X := by
-    -- まず (pd * (qd * (pd * rd))) を assoc で (pd * qd) * (pd * rd) 型にする
+    --(pd * (qd * (pd * rd))) を assoc で (pd * qd) * (pd * rd) 型にする
     have tail_assoc :
         pd * (qd * (pd * rd))
           = pd * qd * (pd * rd) := by
-      -- (pd * (qd * Z)) = (pd * qd) * Z, and reassociate
+      -- (pd * (qd * Z)) = (pd * qd) * Zをmul_assocで解決する
       simp [mul_assoc]
     calc
       pn * ((qn * rd + rn * qd) * (pd * (qd * (pd * rd))))
           = pn * ((qn * rd + rn * qd) * (pd * qd * (pd * rd))) := by
               simp [tail_assoc]
       _   = pn * (qn * rd + rn * qd) * (pd * qd * (pd * rd)) := by
-              -- reassociate pn * ((...) * (...)) → pn * (...) * (...)
               simp [mul_assoc]
       _   = pn * (qn * rd + rn * qd) * X := by
               simp [hX]
 
-  -- (2a) 左側：pn * (qn*rd + rn*qd) * X を足し算に展開
-  --      = pn*(qn*rd)*X + pn*(rn*qd)*X
   have left_expand :
-      pn * (qn * rd + rn * qd) * X
-        =
-      pn * (qn * rd) * X + pn * (rn * qd) * X := by
-    -- まず (qn*rd + rn*qd) * X を右分配
+      pn * (qn * rd + rn * qd) * X = pn * (qn * rd) * X + pn * (rn * qd) * X := by
+    -- まず (qn*rd + rn*qd) * X の右分配を示す
     have inner :
-        (qn * rd + rn * qd) * X
-          =
-        (qn * rd) * X + (rn * qd) * X := by
-      -- right_distrib: (a+b)*c = a*c + b*c
+        (qn * rd + rn * qd) * X = (qn * rd) * X + (rn * qd) * X := by
       have tmp :=
         Semiring.right_distrib (R:=A) (qn * rd) (rn * qd) X
       simpa using tmp
-    -- 次に pn * [...] を左分配
-    -- pn * ( (qn*rd)*X + (rn*qd)*X )
-    --   = pn*(qn*rd)*X + pn*(rn*qd)*X
+    -- 次にpn * ((qn * rd) * X + (rn * qd) * X)の左分配を示す
     have tmp2 :=
       Semiring.left_distrib (R:=A) pn ((qn * rd) * X) ((rn * qd) * X)
-    -- tmp2 :
-    --   pn * ((qn * rd) * X + (rn * qd) * X)
-    --     =
-    --   pn * ((qn * rd) * X) + pn * ((rn * qd) * X)
     simpa [inner, mul_assoc] using tmp2
 
-  -- (2b) 右側の和を別の形に展開：
-  --   (pn*qn*(pd*rd) + pn*rn*(pd*qd)) * Y
-  --   = pn*qn*(pd*rd)*Y + pn*rn*(pd*qd)*Y
+  --Yの右分配測
   have right_expand :
       (pn * qn * (pd * rd) + pn * rn * (pd * qd)) * Y
-        =
-      pn * qn * (pd * rd) * Y
-      + pn * rn * (pd * qd) * Y := by
-    -- これも right_distrib
+        = pn * qn * (pd * rd) * Y + pn * rn * (pd * qd) * Y := by
     have tmp :=
-      Semiring.right_distrib (R:=A)
-        (pn * qn * (pd * rd))
-        (pn * rn * (pd * qd))
-        Y
+      Semiring.right_distrib (R:=A) (pn * qn * (pd * rd)) (pn * rn * (pd * qd)) Y
     simpa [mul_assoc] using tmp
 
-  -- (2c) 個々の項が同じものを掛け算の順序替えで表現してることを示す
-  --      pn * (qn * rd) * X  =  pn * qn * (pd * rd) * Y
   have term1_match :
-      pn * (qn * rd) * X
-        =
-      pn * qn * (pd * rd) * Y := by
-    -- 両辺とも可換・結合の並べ替えだけで一致する
+      pn * (qn * rd) * X = pn * qn * (pd * rd) * Y := by
     simp [X, Y, hY, mul_comm, mul_left_comm]
 
-  --      pn * (rn * qd) * X  =  pn * rn * (pd * qd) * Y
   have term2_match :
-      pn * (rn * qd) * X
-        =
-      pn * rn * (pd * qd) * Y := by
+      pn * (rn * qd) * X = pn * rn * (pd * qd) * Y := by
     simp [X, Y, hY, mul_comm, mul_left_comm]
 
-  -- (2d) 右側の「pd*(qd*rd)」に戻すための再結合
-  --  (pn*(qn*(pd*rd)) + pn*(rn*(pd*qd))) * (pd*(qd*rd))
-  --   と
-  --  (pn*qn*(pd*rd) + pn*rn*(pd*qd)) * Y
-  --  が同じだという補題
   have rhs_reassoc :
       (pn * (qn * (pd * rd)) + pn * (rn * (pd * qd)))
           * (pd * (qd * rd))
@@ -1193,21 +1131,16 @@ lemma left_distrib_rep (hC : Cancellative A)
           =
         ((pn * qn * (pd * rd)) + (pn * rn * (pd * qd)))
           * (pd * (qd * rd)) := by
-            -- assocで pn*(qn*...) = pn*qn*..., 同様に rn側も
             simp [mul_assoc]
       _ =
         (pn * qn * (pd * rd) + pn * rn * (pd * qd)) * Y := by
             simp [hY]
 
-  ----------------------------------------------------------------
-  -- (2e) “X 形” から “最終右辺”までの鎖を mid_chain として証明
-  ----------------------------------------------------------------
   have mid_chain :
       pn * (qn * rd + rn * qd) * X
         =
       (pn * (qn * (pd * rd)) + pn * (rn * (pd * qd)))
           * (pd * (qd * rd)) := by
-    -- ここは calc を使って大丈夫。スタートとゴールがハッキリ一致してるから。
     calc
       pn * (qn * rd + rn * qd) * X
           =
@@ -1223,9 +1156,6 @@ lemma left_distrib_rep (hC : Cancellative A)
         (pn * (qn * (pd * rd)) + pn * (rn * (pd * qd)))
           * (pd * (qd * rd)) := rhs_reassoc.symm
 
-  ----------------------------------------------------------------
-  -- 最後に、(1) と mid_chain を合成して元のゴールを証明
-  ----------------------------------------------------------------
   grind
   --exact lhs_reassoc.trans mid_chain
 
@@ -1236,54 +1166,32 @@ lemma right_distrib_rep (hC : Cancellative A)
       (mulRep (A:=A) hC (addRep (A:=A) hC p q) r)
       (addRep (A:=A) hC (mulRep (A:=A) hC p r) (mulRep (A:=A) hC q r)) := by
 
-  /- まず分子・分母を素の変数にばらす -/
   rcases p with ⟨⟨pn, pd⟩, hp0⟩
   rcases q with ⟨⟨qn, qd⟩, hq0⟩
   rcases r with ⟨⟨rn, rd⟩, hr0⟩
 
-  /- `Rel` と `addRep` / `mulRep` を展開して，
-     Q(A) 上の等式を A の等式に落とす -/
   unfold Rel addRep mulRep
   simp [FracCarrier.num, FracCarrier.den]
-
-  /-
-  いまゴールは（可換・結合の違い以外は）次の形になっているはず：
-
-    ((pn * qd + qn * pd) * rn) * ((pd * rd) * (qd * rd))
-      =
-    ((pn * rn) * (qd * rd) + (qn * rn) * (pd * rd)) * ((pd * qd) * rd)
-
-  左辺・右辺の「でかい分母部分」を変数に取っておく：
-    X := (pd * rd) * (qd * rd)
-    Y := (pd * qd) * rd
-  -/
 
   set X : A := (pd * rd) * (qd * rd) with hX
   set Y : A := (pd * qd) * rd with hY
 
-  /- `*` の結合法則で左側を「((...)*rn) * X」から「(...)*rn*X」に寄せる -/
   have lhs_reassoc :
       ((pn * qd + qn * pd) * rn) * X
         =
       (pn * qd + qn * pd) * rn * X := by
     simp [X, mul_assoc]
 
-  /- 左辺を分配で 2 項の和に分ける。
-     (pn*qd + qn*pd) * rn * X
-       = (pn*qd)*rn*X + (qn*pd)*rn*X
-  -/
   have left_expand :
       (pn * qd + qn * pd) * rn * X
         =
       (pn * qd) * rn * X + (qn * pd) * rn * X := by
-    -- まず一次分配：(a+b)*rn = a*rn + b*rn
     have step1 :
         (pn * qd + qn * pd) * rn
           =
         (pn * qd) * rn + (qn * pd) * rn := by
       simpa using
         Semiring.right_distrib (R:=A) (pn * qd) (qn * pd) rn
-    -- それにさらに * X を右から掛けてもう一度分配
     calc
       (pn * qd + qn * pd) * rn * X
           = ((pn * qd) * rn + (qn * pd) * rn) * X := by
@@ -1293,10 +1201,6 @@ lemma right_distrib_rep (hC : Cancellative A)
                 Semiring.right_distrib (R:=A)
                   ((pn * qd) * rn) ((qn * pd) * rn) X
 
-  /- 右辺側も同様に、
-     ((pn*rn)*(qd*rd) + (qn*rn)*(pd*rd)) * Y
-       = (pn*rn)*(qd*rd)*Y + (qn*rn)*(pd*rd)*Y
-  -/
   have right_expand :
       ((pn * rn) * (qd * rd) + (qn * rn) * (pd * rd)) * Y
         =
@@ -1305,35 +1209,18 @@ lemma right_distrib_rep (hC : Cancellative A)
       Semiring.right_distrib (R:=A)
         ((pn * rn) * (qd * rd)) ((qn * rn) * (pd * rd)) Y
 
-  /- 各項どうしが一致することを示す：
-       (pn * qd) * rn * X
-         = (pn * rn) * (qd * rd) * Y
-     これは可換・結合の並べ替えだけで証明できる
-  -/
   have term1_match :
       (pn * qd) * rn * X
         =
       (pn * rn) * (qd * rd) * Y := by
-    -- それぞれを `pn * rn * qd * qd * pd * rd * rd` 型まで整形
     simp [X, Y, mul_comm, mul_left_comm]
 
-  /- 同様に 2 個目の項：
-       (qn * pd) * rn * X
-         = (qn * rn) * (pd * rd) * Y
-  -/
   have term2_match :
       (qn * pd) * rn * X
         =
       (qn * rn) * (pd * rd) * Y := by
     simp [X, Y, mul_comm, mul_left_comm]
 
-  /- 以上をまとめる。
-     まず左辺を `lhs_reassoc` で (pn*qd+qn*pd)*rn*X に寄せる。
-     次に `left_expand` で 2 項に分ける。
-     それぞれ `term1_match` / `term2_match` で右辺の形にそろえる。
-     最後に `right_expand`.symm で再び和を一つの積にまとめる。
-     その結果が最終的な右辺 ((pn*rn)*(qd*rd) + (qn*rn)*(pd*rd)) * Y になる。
-  -/
   have mid_chain :
       (pn * qd + qn * pd) * rn * X
         =
@@ -1346,19 +1233,14 @@ lemma right_distrib_rep (hC : Cancellative A)
               simp [term1_match, term2_match]
       _   = ((pn * rn) * (qd * rd) + (qn * rn) * (pd * rd)) * Y := by
               simpa [mul_assoc] using right_expand.symm
-
-  /- 仕上げ：
-     LHS = ((pn*qd + qn*pd) * rn) * X
-         = (pn*qd + qn*pd) * rn * X          (lhs_reassoc)
-         = ... = RHS                         (mid_chain)
-  -/
-  exact lhs_reassoc.trans mid_chain
+  grind
+  --exact lhs_reassoc.trans mid_chain
 
 
 
 end FracCarrier
 
---11/21
+--11/28
 
 -- Q(A)は可換な加法モノイドである
 section
@@ -1750,21 +1632,92 @@ noncomputable instance : Semifield (Q (A:=A) hC) :=
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 --11/28
+
+-- A の元 a を既約分数 a/1 に埋め込む写像 f : A → Q(A)
+
+
+section
+
+variable {A : Type u} [Semiring A]
+variable (hC : Cancellative A) [NeZero (1 : A)]
+
+-- 自然な埋め込み `f : A → Q(A)`（`a ↦ a/1`） 
+noncomputable def Emb : A → Q (A:=A) hC :=
+  fun a => Q.mk (A:=A) hC a 1 (by simp[NeZero.ne (1 : A)])
+
+@[simp] lemma Emb_apply (a : A) :
+    Emb (A:=A) hC a
+      = Q.mk (A:=A) hC a 1 (by simp[NeZero.ne (1 : A)]) := rfl
+
+lemma Emb_injective : Function.Injective (Emb (A:=A) hC) := by
+  intro a b h
+  -- 等式を代表の等式に落としてから `Quotient.exact` で Rel を取り出す
+  have hmk :
+      Quot.mk (FracCarrier.setoid (A:=A) hC)
+              ⟨(a, (1 : A)), by simp [NeZero.ne (1 : A)]⟩
+        =
+      Quot.mk (FracCarrier.setoid (A:=A) hC)
+              ⟨(b, (1 : A)), by simp [NeZero.ne (1 : A)]⟩ := by
+    simpa [Emb, Emb_apply] using h
+  have hRel :
+      FracCarrier.Rel (A:=A)
+        ⟨(a, (1 : A)), by simp [NeZero.ne (1 : A)]⟩
+        ⟨(b, (1 : A)), by simp [NeZero.ne (1 : A)]⟩ :=
+    Quotient.exact hmk
+  -- Rel を展開すると a*1 = b*1 なので a = b
+  dsimp [FracCarrier.Rel, FracCarrier.num, FracCarrier.den] at hRel
+  simpa [mul_one] using hRel
+
+noncomputable def EmbHom :
+    SemiringHomomorphism A (Q (A:=A) hC) :=
+{ toFun := Emb (A:=A) hC
+
+  map_add := by
+    intro a b
+    -- まず商の代表に落としてから `Rel` で示す
+    have h10 : (1 : A) ≠ 0 := NeZero.ne (1 : A)
+    -- 目標を `[a+b/1] = [ (a/1) + (b/1) ]` の形へ
+    simp [Emb]   -- RHS が `Quot.mk _ (addRep …)` に落ちる
+    -- `Rel` による同値類の等しさを示す
+    apply Quot.sound
+    change
+      FracCarrier.Rel (A:=A)
+        ⟨(a + b, 1), h10⟩
+        (FracCarrier.addRep (A:=A) hC ⟨(a, 1), h10⟩ ⟨(b, 1), h10⟩)
+    -- 定義展開して両辺を簡約
+    unfold FracCarrier.Rel FracCarrier.addRep
+           FracCarrier.num FracCarrier.den
+    -- 目標は `(a+b) * (1*1) = (a*1 + b*1) * 1`
+    simp [mul_one]
+
+  map_mul := by
+    intro a b
+    have h10 : (1 : A) ≠ 0 := NeZero.ne (1 : A)
+    -- 目標を `[ab/1] = [(a/1)*(b/1)]` に
+    simp [Emb]
+    apply Quot.sound
+    change
+      FracCarrier.Rel (A:=A)
+        ⟨(a * b, 1), h10⟩
+        (FracCarrier.mulRep (A:=A) hC ⟨(a, 1), h10⟩ ⟨(b, 1), h10⟩)
+    unfold FracCarrier.Rel FracCarrier.mulRep
+           FracCarrier.num FracCarrier.den
+    -- 目標は `(ab) * (1*1) = (a*b) * 1`
+    simp [mul_one]
+
+  map_zero := by
+    -- 0 : Q を Q.zero に書き換える
+    change Emb (A:=A) hC 0 = TropicalGeometry.Q.zero (A:=A) hC
+    -- 両辺とも同じ mk に落ちる
+    simp [Emb, TropicalGeometry.Q.zero]
+
+  map_one := by
+    change Emb (A:=A) hC 1 = TropicalGeometry.Q.one (A:=A) hC
+    simp [Emb, TropicalGeometry.Q.one]
+}
+
+
 
 open Classical
 
