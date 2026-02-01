@@ -41,7 +41,7 @@ jobs:
           fetch-depth: 0 # Fetch all history for all branches and tags
 
       - name: Install and configure Lean, and get mathlib cache
-        uses: leanprover/lean-action@f807b338d95de7813c5c50d018f1c23c9b93b4ec # v1.2.0
+        uses: leanprover/lean-action@c544e89643240c6b398f14a431bcdc6309e36b3e # v1.4.0
         with:
           auto-config: false
           use-github-cache: false
